@@ -8,7 +8,7 @@
 #
 #   install        build the packages and install those of the kind this
 #                  system takes with its usual installer, apt-get, dnf or
-#                  zypper, under sudo; SIMULATE=1 shows what it would do
+#                  zypper, under sudo; DRY_RUN=1 shows what it would do
 #   uninstall      remove the packages with the same installer
 #   stage          install each package into build/stage/<package>
 #   deb            build each package's .deb into build/packages
@@ -55,7 +55,7 @@
 # install and uninstall take, from the command line or the environment,
 # PACKAGE_FORMAT, deb or rpm, to install that kind whatever the system is;
 # INSTALLER, the installer to run; SUDO, what runs it, sudo unless make
-# runs as root; and SIMULATE=1, to have the installer show what it would do
+# runs as root; and DRY_RUN=1, to have the installer show what it would do
 # and change nothing, without SUDO: see install-packages.sh.
 
 TCS_SOURCE   ?= $(firstword $(PACKAGES))
@@ -206,9 +206,9 @@ lint-packages: tcs-helpers	## Lint the packages and their shell scripts
 # make's environment, but for SUDO, above.
 PACKAGE_FORMAT ?=
 INSTALLER      ?=
-SIMULATE       ?=
+DRY_RUN        ?=
 INSTALL_PACKAGES = PACKAGE_FORMAT='$(PACKAGE_FORMAT)' \
-		INSTALLER='$(INSTALLER)' SUDO='$(SUDO)' SIMULATE='$(SIMULATE)' \
+		INSTALLER='$(INSTALLER)' SUDO='$(SUDO)' DRY_RUN='$(DRY_RUN)' \
 		$(TCS_HELPERS)/packaging/install-packages.sh
 
 # install and uninstall are the system's installer's, which has no DESTDIR

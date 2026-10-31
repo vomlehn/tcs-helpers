@@ -153,15 +153,15 @@ expect 0 "ran apt-get install ./pkg.deb" all ubuntu -- \
 	install pkg.deb -- "$rpm"
 
 # Simulating: each installer's no-change mode, and never sudo.
-expect 0 "ran apt-get install -s $deb" all ubuntu SUDO=sudo SIMULATE=1 -- \
+expect 0 "ran apt-get install -s $deb" all ubuntu SUDO=sudo DRY_RUN=1 -- \
 	install "$deb" -- "$rpm"
-expect 0 "[OK] Simulated" all ubuntu SUDO=false SIMULATE=1 -- \
+expect 0 "[OK] Simulated" all ubuntu SUDO=false DRY_RUN=1 -- \
 	install "$deb" -- "$rpm"
-expect 0 "ran dnf install --assumeno $rpm" all fedora SIMULATE=1 -- \
+expect 0 "ran dnf install --assumeno $rpm" all fedora DRY_RUN=1 -- \
 	install "$deb" -- "$rpm"
-expect 0 "ran zypper install --dry-run $rpm" all tumbleweed SIMULATE=1 -- \
+expect 0 "ran zypper install --dry-run $rpm" all tumbleweed DRY_RUN=1 -- \
 	install "$deb" -- "$rpm"
-expect 0 "ran apt-get remove -s pkg" all ubuntu SIMULATE=1 -- remove pkg
+expect 0 "ran apt-get remove -s pkg" all ubuntu DRY_RUN=1 -- remove pkg
 
 # PACKAGE_FORMAT and INSTALLER.
 expect 0 "ran dnf install $rpm" all ubuntu PACKAGE_FORMAT=rpm -- \
@@ -170,7 +170,7 @@ expect 0 "ran zypper install $rpm" zypper ubuntu PACKAGE_FORMAT=rpm -- \
 	install "$deb" -- "$rpm"
 expect 0 "ran apt-get install $deb" all fedora PACKAGE_FORMAT=deb -- \
 	install "$deb" -- "$rpm"
-expect 0 "ran rpm -U --test $rpm" all ubuntu INSTALLER=rpm SIMULATE=1 -- \
+expect 0 "ran rpm -U --test $rpm" all ubuntu INSTALLER=rpm DRY_RUN=1 -- \
 	install "$deb" -- "$rpm"
 expect 0 "ran yum install $rpm" all fedora INSTALLER=yum -- \
 	install "$deb" -- "$rpm"

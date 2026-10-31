@@ -127,15 +127,15 @@ environment, change what happens:
 
 | Variable | What it does |
 |---|---|
-| `SIMULATE=1` | Runs the installer's own no-change mode -- `apt-get -s`, `dnf` or `yum --assumeno`, `zypper --dry-run`, `rpm --test` -- without `SUDO`, to show what install or uninstall would do |
+| `DRY_RUN=1` | Runs the installer's own no-change mode -- `apt-get -s`, `dnf` or `yum --assumeno`, `zypper --dry-run`, `rpm --test` -- without `SUDO`, to show what install or uninstall would do |
 | `PACKAGE_FORMAT=deb` or `rpm` | Installs that kind whatever the system is: with its usual installer where it has one, and otherwise with the first of `dnf`, `yum` and `zypper` present |
 | `INSTALLER=<command>` | Runs that installer: `apt-get`, `apt`, `dpkg`, `dnf`, `yum`, `zypper` or `rpm`, or a path to one; the kind is the one it installs |
 | `SUDO=<command>` | Runs the installer under that instead of `sudo`; `SUDO=` runs it as yourself |
 
 ```sh
-make install SIMULATE=1                     # see what it would do
+make install DRY_RUN=1                      # see what it would do
 make install                                # do it
-PACKAGE_FORMAT=rpm make install SIMULATE=1  # the RPM, on any system
+PACKAGE_FORMAT=rpm make install DRY_RUN=1   # the RPM, on any system
 make uninstall
 ```
 

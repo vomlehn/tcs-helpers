@@ -425,7 +425,7 @@ command line or in the environment, change what happens:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>SIMULATE=1</code></td>
+<td><code>DRY_RUN=1</code></td>
 <td>Runs the installer’s own no-change mode – <code>apt-get -s</code>,
 <code>dnf</code> or <code>yum --assumeno</code>,
 <code>zypper --dry-run</code>, <code>rpm --test</code> – without
@@ -451,9 +451,9 @@ the one it installs</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install SIMULATE=1                     <span class="co"># see what it would do</span></span>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install SIMULATE=1  <span class="co"># the RPM, on any system</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>On a system it does not know, <code>make install</code> stops, naming
 the <code>ID</code> and <code>ID_LIKE</code> it read and saying to give

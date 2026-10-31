@@ -9,6 +9,14 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.5.0] - 2026-10-31
+
+### Changed
+
+- The dry run of `make install` and `make uninstall` is `DRY_RUN=1`,
+  where it was `SIMULATE=1`: tcspecial's own `SIMULATE` chooses which
+  payloads its run targets simulate, and the one name meant two things.
+
 ## [0.4.0] - 2026-10-30
 
 ### Added

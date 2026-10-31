@@ -34,7 +34,7 @@
 #   SUDO            the command the installer is run under, by default
 #                   none; packaging.mk gives sudo unless make runs as
 #                   root, so that only the installer is privileged
-#   SIMULATE        1 to run the installer's own mode that shows what it
+#   DRY_RUN         1 to run the installer's own mode that shows what it
 #                   would do and changes nothing (apt-get -s, dnf and yum
 #                   --assumeno, zypper --dry-run, rpm --test, dpkg
 #                   --dry-run), without SUDO
@@ -69,7 +69,7 @@ esac
 PACKAGE_FORMAT=${PACKAGE_FORMAT:-}
 INSTALLER=${INSTALLER:-}
 SUDO=${SUDO:-}
-SIMULATE=${SIMULATE:-}
+DRY_RUN=${DRY_RUN:-}
 
 # One field of the os-release file, without the quotes it may have. It is
 # read rather than sourced, so that the file is data and never run.
@@ -349,7 +349,7 @@ dpkg-remove)
 	;;
 esac
 
-if [ "$SIMULATE" = 1 ]; then
+if [ "$DRY_RUN" = 1 ]; then
 	echo "Simulating, which changes nothing:"
 	echo "  $installer $command $simulate$args"
 	# shellcheck disable=SC2086 # One file or package per word.
