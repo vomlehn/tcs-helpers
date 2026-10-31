@@ -35,7 +35,8 @@ install:
 	install -d $(BINDIR) $(DATADIR)
 	for c in $(COMMANDS); do \
 		sed -e 's|@VERSION@|$(VERSION)|g' \
-		    -e 's|@DATADIR@|$(DATADIR)|g' bin/$$c.in > $(BINDIR)/$$c.new \
+		    -e 's|@DATADIR@|$(DATADIR)|g' bin/$$c.in \
+		    > $(BINDIR)/$$c.new \
 		&& chmod 755 $(BINDIR)/$$c.new \
 		&& mv $(BINDIR)/$$c.new $(BINDIR)/$$c || exit 1; \
 	done
