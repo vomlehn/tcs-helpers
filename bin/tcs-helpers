@@ -1,0 +1,64 @@
+#!/bin/sh
+# tcs-helpers: says which version of tcs-helpers a checkout is, and checks
+# that it is new enough for a project that uses it.
+#
+#   tcs-helpers --version          print this checkout's version
+#   tcs-helpers --require VERSION  exit 0 if this checkout is at least
+#                                  VERSION, else say so and exit 1
+#
+# It is run from the checkout, as everything in tcs-helpers is: the
+# version is the VERSION file beside its bin/ directory.
+
+set -eu
+
+top=$(cd "$(dirname "$0")/.." && pwd)
+VERSION=$(cat "$top/VERSION")
+
+# Prints how to call this command.
+usage() {
+	echo "usage: tcs-helpers --version | --require VERSION"
+}
+
+# Tells whether one version is at least another.
+#
+# Arguments:
+#   $1  The version this checkout is, as MAJOR.MINOR.PATCH.
+#   $2  The version required, in the same form.
+#
+# Returns:
+#   0 if $1 is $2 or later, 1 otherwise.
+at_least() {
+	[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n 1)" = "$2" ]
+}
+
+if [ $# -eq 0 ]; then
+	usage >&2
+	exit 2
+fi
+case "$1" in
+--version)
+	echo "$VERSION"
+	;;
+--require)
+	if [ $# -ne 2 ]; then
+		usage >&2
+		exit 2
+	fi
+	if ! printf '%s\n' "$2" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+		echo "tcs-helpers: '$2' is not a version: MAJOR.MINOR.PATCH" >&2
+		exit 2
+	fi
+	if ! at_least "$VERSION" "$2"; then
+		echo "tcs-helpers: the checkout at $top is version" \
+		     "$VERSION, and $2 is required: update it with git pull" >&2
+		exit 1
+	fi
+	;;
+-h | --help)
+	usage
+	;;
+*)
+	usage >&2
+	exit 2
+	;;
+esac

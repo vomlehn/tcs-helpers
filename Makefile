@@ -1,54 +1,50 @@
-# tcs-helpers: one copy of what the tcs projects share for packaging,
-# installed where they use it from.
+# tcs-helpers: one copy of what the tcs projects share for packaging, used
+# from this checkout rather than installed.
 #
-#   make install     commands into $(BINDIR), data into $(DATADIR)
-#   make uninstall   remove what install put there
+#   make html        write README.html from README.md
 #   make check       shellcheck every script
+#   make uninstall   remove what make install put in ~/bin and ~/lib in
+#                    version 0.1.0, which installed it
 #
-# The defaults install into your own home, so nothing needs root:
-# ~/bin, which is on PATH, and ~/lib/tcs-helpers. Set PREFIX to install
-# elsewhere, BINDIR and DATADIR to split them.
+# A project finds this checkout beside itself, as ../tcs-helpers, or
+# wherever its TCS_HELPERS says: see README.md.
 
+# Where version 0.1.0's `make install` put things, which is what uninstall
+# removes: ~/bin/tcs-helpers and ~/lib/tcs-helpers, or the same under the
+# PREFIX, BINDIR and DATADIR that install was given.
 PREFIX  ?= $(HOME)
 BINDIR  ?= $(PREFIX)/bin
 DATADIR ?= $(PREFIX)/lib/tcs-helpers
 
-VERSION := $(shell cat VERSION)
-
-# The commands, from bin/, each written from its .in with the version and
-# the data directory filled in.
-COMMANDS := $(patsubst bin/%.in,%,$(wildcard bin/*.in))
-
-# The data, from lib/, installed as it is.
-DATA := $(wildcard lib/*)
-
 .PHONY: all
 all:
-	@echo "Nothing to build: run make install, or make help."
+	@echo "Nothing to build: tcs-helpers is used from this checkout."
+	@echo "See make help and README.md."
 
 .PHONY: help
 help:
 	@sed -n 's/^#   //p' Makefile
 
-.PHONY: install
-install:
-	install -d $(BINDIR) $(DATADIR)
-	for c in $(COMMANDS); do \
-		sed -e 's|@VERSION@|$(VERSION)|g' \
-		    -e 's|@DATADIR@|$(DATADIR)|g' bin/$$c.in \
-		    > $(BINDIR)/$$c.new \
-		&& chmod 755 $(BINDIR)/$$c.new \
-		&& mv $(BINDIR)/$$c.new $(BINDIR)/$$c || exit 1; \
-	done
-	$(if $(DATA),install -m 644 $(DATA) $(DATADIR))
-	@echo "Installed tcs-helpers $(VERSION): $(BINDIR), $(DATADIR)"
+# README.md is the documentation; README.html is it as a page of its own,
+# with pandoc's --standalone giving it a head and a title.
+.PHONY: html
+html: README.html
 
-.PHONY: uninstall
-uninstall:
-	for c in $(COMMANDS); do rm -f $(BINDIR)/$$c; done
-	rm -rf $(DATADIR)
+README.html: README.md
+	pandoc --standalone --metadata pagetitle=tcs-helpers README.md \
+		-o README.html
 
 .PHONY: check
 check:
-	shellcheck $(wildcard bin/*.in) $(filter %.sh,$(DATA))
+	shellcheck bin/tcs-helpers packaging/lint-packages.sh \
+		packaging/debian-files.sh
+	sed -e 's|@PACKAGE@|example|g' -e 's|@PREFIX@|/opt/tcs|g' \
+		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
+		| shellcheck -s sh -
 	@echo "shellcheck found nothing"
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(BINDIR)/tcs-helpers
+	rm -rf $(DATADIR)
+	@echo "Removed anything installed in $(BINDIR) and $(DATADIR)"
