@@ -9,6 +9,42 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.4.0] - 2026-10-30
+
+### Added
+
+- `install` and `uninstall` in `packaging.mk`. `make install` builds the
+  packages, both kinds, as whoever runs make, and installs those of the
+  kind this system takes with its usual installer: `apt-get` on Debian
+  and Ubuntu, `dnf`, or `yum` without it, on Fedora and Red Hat's, and
+  `zypper` on SUSE's, as the `ID` and `ID_LIKE` of `/etc/os-release` say.
+  `make uninstall` removes the packages with the same installer. Only the
+  installer runs privileged, under `SUDO`, which is `sudo` unless make
+  runs as root. `SIMULATE=1` runs the installer's no-change mode without
+  `SUDO`; `PACKAGE_FORMAT=deb|rpm` and `INSTALLER=<command>` override
+  the choice. Both stop, naming `install-files` and `uninstall-files`,
+  when given `DESTDIR` or a `PREFIX` other than `/opt/tcs`.
+- `packaging/install-packages.sh`, which chooses the kind and the
+  installer and runs it for those targets, and
+  `packaging/test-install-packages.sh`, which `make check` runs to test
+  its choices against stand-in installers.
+
+### Changed
+
+- `STAGE_TARGET` defaults to `install-files`, the project's copy of its
+  files into `DESTDIR`, which is what a project's `make install` was. A
+  project renames its `install` and `uninstall` to `install-files` and
+  `uninstall-files`, and includes `packaging.mk` only where
+  `install-packages.sh` is there, so that an older checkout stops at the
+  `tcs-helpers` check.
+- `make deb` without `dpkg-deb` says so and builds nothing, without
+  failing, as `make rpm` does without `rpmbuild`, so that `make packages`
+  builds what it can.
+- The RPMs are given `tcs_release`, `DEB_REVISION`, for their spec's
+  `Release`, so that a .deb and its RPM have the same revision and
+  `install` can name both files exactly. `lint-packages` checks those
+  files alone, not every revision in `build/packages`.
+
 ## [0.3.0] - 2026-10-30
 
 ### Added

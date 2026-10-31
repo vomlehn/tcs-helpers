@@ -2,7 +2,8 @@
 # from this checkout rather than installed.
 #
 #   make README.html write README.html from README.md
-#   make check       shellcheck every script
+#   make check       shellcheck every script, and test
+#                    install-packages.sh's choice of installer
 #   make uninstall   remove what make install put in ~/bin and ~/lib in
 #                    version 0.1.0, which installed it
 #
@@ -34,7 +35,9 @@ README.html: README.md
 .PHONY: check
 check:
 	shellcheck bin/tcs-helpers packaging/lint-packages.sh \
-		packaging/debian-files.sh packaging/build-deb.sh
+		packaging/debian-files.sh packaging/build-deb.sh \
+		packaging/install-packages.sh packaging/test-install-packages.sh
+	packaging/test-install-packages.sh
 	sed -e 's|@PACKAGE@|example|g' -e 's|@PREFIX@|/opt/tcs|g' \
 		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
 		| shellcheck -s sh -

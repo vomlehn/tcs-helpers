@@ -255,18 +255,25 @@ command line or in the environment:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> packages TCS_HELPERS=/path/to/tcs-helpers</span></code></pre></div>
 <h2 id="using-it-from-a-project">Using it from a project</h2>
 <p>A project’s packaging – <code>make install</code>,
-<code>make stage</code>, <code>make deb</code>, <code>make rpm</code>,
+<code>make uninstall</code>, <code>make install-files</code>,
+<code>make uninstall-files</code>, <code>make stage</code>,
+<code>make deb</code>, <code>make rpm</code>,
 <code>make packages</code>, <code>make lint-packages</code>,
 <code>make links</code> and <code>make unlinks</code> – runs what it
-needs from the checkout. All but <code>make install</code> are the rules
-in <code>packaging/packaging.mk</code>, which the project’s Makefile
-includes after saying what its packages are:</p>
+needs from the checkout. All but <code>make install-files</code> and
+<code>make uninstall-files</code>, which copy the project’s own files
+into place, are the rules in <code>packaging/packaging.mk</code>, which
+the project’s Makefile includes after saying what its packages are:</p>
 <pre class="make"><code>TCS_HELPERS ?= $(abspath $(CURDIR)/../tcs-helpers)
-TCS_HELPERS_REQUIRED := 0.3.0
+TCS_HELPERS_REQUIRED := 0.4.0
 PACKAGES := tcslog
-ifneq ($(wildcard $(TCS_HELPERS)/packaging/packaging.mk),)
+ifneq ($(wildcard $(TCS_HELPERS)/packaging/install-packages.sh),)
 include $(TCS_HELPERS)/packaging/packaging.mk
 else
+.PHONY: install
+install: tcs-helpers
+.PHONY: uninstall
+uninstall: tcs-helpers
 .PHONY: stage
 stage: tcs-helpers
 .PHONY: deb
@@ -283,7 +290,8 @@ links: tcs-helpers
 unlinks: tcs-helpers
 endif</code></pre>
 <p>The <code>else</code> is for a checkout that is missing or older than
-0.3.0, when there is nothing to include: the targets then stop as the
+0.4.0, the first with <code>install-packages.sh</code>, when there is
+nothing to include that has every target: the targets then stop as the
 project’s <code>tcs-helpers</code> target says. The comment at the top
 of <code>packaging.mk</code> lists what else a project gives it, such as
 <code>RPM_DEFINES</code> for its RPM spec, and what it must have in its
@@ -294,7 +302,7 @@ where to clone it from, or to update it.</p>
 <p>The check is the <code>tcs-helpers</code> command, which a project
 runs from the checkout:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--version</span>         <span class="co"># this checkout&#39;s version</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--require</span> 0.3.0   <span class="co"># exit 1 if it is older</span></span></code></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--require</span> 0.4.0   <span class="co"># exit 1 if it is older</span></span></code></pre></div>
 <p>What the projects use from it, all in <code>packaging/</code>:</p>
 <table>
 <colgroup>
@@ -310,10 +318,16 @@ runs from the checkout:</p>
 <tbody>
 <tr>
 <td><code>packaging.mk</code></td>
-<td>The make rules for <code>stage</code>, <code>deb</code>,
-<code>rpm</code>, <code>packages</code>, <code>lint-packages</code>,
-<code>links</code> and <code>unlinks</code>, which a project’s Makefile
-includes</td>
+<td>The make rules for <code>install</code>, <code>uninstall</code>,
+<code>stage</code>, <code>deb</code>, <code>rpm</code>,
+<code>packages</code>, <code>lint-packages</code>, <code>links</code>
+and <code>unlinks</code>, which a project’s Makefile includes</td>
+</tr>
+<tr>
+<td><code>install-packages.sh</code></td>
+<td>Installs the packages <code>make packages</code> built, or removes
+them, with this system’s installer, for <code>make install</code> and
+<code>make uninstall</code></td>
 </tr>
 <tr>
 <td><code>build-deb.sh</code></td>
@@ -342,14 +356,127 @@ script, which links its programs into <code>/usr/local/bin</code></td>
 </tr>
 </tbody>
 </table>
-<p>What differs between projects – their <code>make install</code>,
-Debian control files and maintainer scripts, RPM specs,
-<code>copyright.in</code>, rpmlint settings and install hooks – stays in
-each project.</p>
+<p>What differs between projects – their
+<code>make install-files</code>, Debian control files and maintainer
+scripts, RPM specs, <code>copyright.in</code>, rpmlint settings and
+install hooks – stays in each project.</p>
+<h2 id="what-make-install-does-in-a-project">What
+<code>make install</code> does in a project</h2>
+<p><code>make install</code> builds the project’s packages, the .deb and
+the RPM, as whoever ran make, with <code>make packages</code>; then it
+installs those of the kind this system takes, with its usual installer,
+which also installs what they depend on:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>System, by <code>/etc/os-release</code>’s <code>ID</code> or
+<code>ID_LIKE</code></th>
+<th>Installs</th>
+<th>With</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>debian</code>, <code>ubuntu</code></td>
+<td>the .debs</td>
+<td><code>apt-get install ./&lt;file&gt;.deb</code></td>
+</tr>
+<tr>
+<td><code>fedora</code>, <code>rhel</code>, <code>centos</code>,
+<code>rocky</code>, <code>almalinux</code></td>
+<td>the RPMs</td>
+<td><code>dnf install ./&lt;file&gt;.rpm</code>, or <code>yum</code>
+without dnf</td>
+</tr>
+<tr>
+<td><code>suse</code>, <code>opensuse</code>, <code>sles</code></td>
+<td>the RPMs</td>
+<td><code>zypper install ./&lt;file&gt;.rpm</code></td>
+</tr>
+</tbody>
+</table>
+<p>The system is told by <code>/etc/os-release</code> rather than by
+which tools are present, since a Debian system may have <code>rpm</code>
+installed too. The files are named exactly, at the project’s version and
+<code>DEB_REVISION</code>, which is the RPM’s release as well, so that
+nothing stale in <code>build/packages</code> is installed.
+<code>make uninstall</code> removes the project’s packages with the same
+installer (<code>apt-get remove</code>, <code>dnf remove</code>,
+<code>zypper remove</code>); the packages’ own removal scripts take away
+any links <code>make links</code> made.</p>
+<p>Only the installer runs privileged, under <code>SUDO</code>, which is
+<code>sudo</code>, and empty when make runs as root. These, on the
+command line or in the environment, change what happens:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Variable</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SIMULATE=1</code></td>
+<td>Runs the installer’s own no-change mode – <code>apt-get -s</code>,
+<code>dnf</code> or <code>yum --assumeno</code>,
+<code>zypper --dry-run</code>, <code>rpm --test</code> – without
+<code>SUDO</code>, to show what install or uninstall would do</td>
+</tr>
+<tr>
+<td><code>PACKAGE_FORMAT=deb</code> or <code>rpm</code></td>
+<td>Installs that kind whatever the system is: with its usual installer
+where it has one, and otherwise with the first of <code>dnf</code>,
+<code>yum</code> and <code>zypper</code> present</td>
+</tr>
+<tr>
+<td><code>INSTALLER=&lt;command&gt;</code></td>
+<td>Runs that installer: <code>apt-get</code>, <code>apt</code>,
+<code>dpkg</code>, <code>dnf</code>, <code>yum</code>,
+<code>zypper</code> or <code>rpm</code>, or a path to one; the kind is
+the one it installs</td>
+</tr>
+<tr>
+<td><code>SUDO=&lt;command&gt;</code></td>
+<td>Runs the installer under that instead of <code>sudo</code>;
+<code>SUDO=</code> runs it as yourself</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install SIMULATE=1                     <span class="co"># see what it would do</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install SIMULATE=1  <span class="co"># the RPM, on any system</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<p>On a system it does not know, <code>make install</code> stops, naming
+the <code>ID</code> and <code>ID_LIKE</code> it read and saying to give
+<code>PACKAGE_FORMAT</code> and, if need be, <code>INSTALLER</code>. If
+the kind the system takes was not built, because <code>dpkg-deb</code>
+or <code>rpmbuild</code> is missing, it stops and says which to install;
+<code>make deb</code> and <code>make rpm</code> themselves say so in a
+line and carry on, so that <code>make packages</code> builds what it
+can.</p>
+<p><code>make install-files</code> is what <code>make install</code> was
+before 0.4.0: the project’s own copy of its files into
+<code>$(DESTDIR)$(PREFIX)</code>, which <code>make stage</code> uses, as
+<code>STAGE_TARGET</code>, to make the tree the packages are cut from,
+and which a developer can use to install without a package.
+<code>make uninstall-files</code> removes that copy.
+<code>make install</code> and <code>make uninstall</code> take no
+<code>DESTDIR</code> or <code>PREFIX</code>, the packages going under
+<code>/opt/tcs</code>, and stop, naming <code>install-files</code>, if
+given either.</p>
 <h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
 <p>Pull it as you would any other repository:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
 <p>The projects use whatever the checkout holds, so a change here
 reaches them at their next build. A project that needs a newer version
 than the checkout’s says so and stops, naming the version it needs.</p>
@@ -360,7 +487,7 @@ the version it requires.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
 <p>The projects then cannot build their packages until it is cloned
 again; everything else they do – building, testing, their own
 documentation – does not use it.</p>
@@ -369,8 +496,8 @@ documentation – does not use it.</p>
 in <code>~/bin</code> and an empty <code>~/lib/tcs-helpers</code>. On a
 machine where that was done, remove them before removing the
 checkout:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>That removes <code>~/bin/tcs-helpers</code> and
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
@@ -382,9 +509,15 @@ with pandoc, for reading in a browser; run it after editing
 <code>README.md</code>, and commit the two together.</p>
 <h2 id="checking">Checking</h2>
 <p><code>make check</code> runs shellcheck on every script,
-<code>links.sh.in</code> with its placeholders filled in.
-<code>packaging.mk</code> is checked by the projects’ own
-<code>make packages</code> and <code>make lint-packages</code>.</p>
+<code>links.sh.in</code> with its placeholders filled in, and
+<code>packaging/test-install-packages.sh</code>, which runs
+<code>install-packages.sh</code> against os-release files and stand-in
+installers of its own and checks the command it would have run on each
+system. <code>install-packages.sh</code> reads the os-release file
+<code>TCS_OS_RELEASE</code> names in place of
+<code>/etc/os-release</code>, for testing. <code>packaging.mk</code> is
+checked by the projects’ own <code>make packages</code> and
+<code>make lint-packages</code>.</p>
 <h2 id="license">License</h2>
 <p>Licensed under either of the Apache License, Version 2.0, in
 <code>LICENSE-APACHE</code>, or the MIT license, in
