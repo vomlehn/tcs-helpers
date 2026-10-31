@@ -34,7 +34,7 @@ README.html: README.md
 .PHONY: check
 check:
 	shellcheck bin/tcs-helpers packaging/lint-packages.sh \
-		packaging/debian-files.sh
+		packaging/debian-files.sh packaging/build-deb.sh
 	sed -e 's|@PACKAGE@|example|g' -e 's|@PREFIX@|/opt/tcs|g' \
 		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
 		| shellcheck -s sh -

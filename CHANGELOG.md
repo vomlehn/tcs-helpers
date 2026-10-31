@@ -9,6 +9,22 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.3.0] - 2026-10-30
+
+### Added
+
+- `packaging/packaging.mk`, the make rules for `stage`, `deb`, `rpm`,
+  `packages`, `lint-packages`, `links` and `unlinks` that the TCS projects
+  each had, for a project's Makefile to include. A project gives it its
+  `PACKAGES`, and, as it needs them, `RPM_DEFINES`, `LINT_SCRIPTS`,
+  `STAGE_TARGET`, `STAGE_VARS` and `TCS_SOURCE`.
+- `packaging/build-deb.sh`, which builds a package's .deb from its stage
+  for `packaging.mk`, as tcs-xtce's and tcspecial's copies did. It takes
+  the control file and maintainer scripts from the project's
+  `packaging/deb/<package>/DEBIAN`, replaces `@SHLIBS@` in the control file
+  with what `dpkg-shlibdeps` finds, makes every file under `/etc` a
+  conffile and writes a `shlibs` entry for each shared library.
+
 ## [0.2.0] - 2026-10-30
 
 ### Added

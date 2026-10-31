@@ -236,10 +236,10 @@
 <body>
 <h1 id="tcs-helpers">tcs-helpers</h1>
 <p>tcs-helpers holds the one copy of what the TCS projects – tcs-xtce,
-tcslog, tcslog-tools and tcspecial – share for building their packages.
-Each project used to carry its own copy of these scripts, and the copies
-drifted apart; now there is one, and the projects use it from where it
-is.</p>
+tcslog, tcslog-tools and tcspecial – share for building their packages:
+the make rules and the scripts they run. Each project used to carry its
+own copy of these, and the copies drifted apart; now there is one, and
+the projects use it from where it is.</p>
 <p>It is not installed. A project uses it from a checkout of this
 repository, by default the one beside the project,
 <code>../tcs-helpers</code>, so that cloning it next to the projects is
@@ -256,14 +256,33 @@ command line or in the environment:</p>
 <h2 id="using-it-from-a-project">Using it from a project</h2>
 <p>A project’s packaging – <code>make install</code>,
 <code>make stage</code>, <code>make deb</code>, <code>make rpm</code>,
-<code>make packages</code> and <code>make lint-packages</code> – runs
-what it needs from the checkout. Before it does, it checks that the
-checkout is there and new enough, and stops with a message saying what
-to do if not: where to clone it from, or to update it.</p>
+<code>make packages</code>, <code>make lint-packages</code>,
+<code>make links</code> and <code>make unlinks</code> – runs what it
+needs from the checkout. All but <code>make install</code> are the rules
+in <code>packaging/packaging.mk</code>, which the project’s Makefile
+includes after saying what its packages are:</p>
+<pre class="make"><code>TCS_HELPERS ?= $(abspath $(CURDIR)/../tcs-helpers)
+TCS_HELPERS_REQUIRED := 0.3.0
+PACKAGES := tcslog
+ifneq ($(wildcard $(TCS_HELPERS)/packaging/packaging.mk),)
+include $(TCS_HELPERS)/packaging/packaging.mk
+else
+.PHONY: stage deb rpm packages lint-packages links unlinks
+stage deb rpm packages lint-packages links unlinks: tcs-helpers
+endif</code></pre>
+<p>The <code>else</code> is for a checkout that is missing or older than
+0.3.0, when there is nothing to include: the targets then stop as the
+project’s <code>tcs-helpers</code> target says. The comment at the top
+of <code>packaging.mk</code> lists what else a project gives it, such as
+<code>RPM_DEFINES</code> for its RPM spec, and what it must have in its
+own <code>packaging</code> directory.</p>
+<p>Before any of them runs, the project checks that the checkout is
+there and new enough, and stops with a message saying what to do if not:
+where to clone it from, or to update it.</p>
 <p>The check is the <code>tcs-helpers</code> command, which a project
 runs from the checkout:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--version</span>         <span class="co"># this checkout&#39;s version</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--require</span> 0.2.0   <span class="co"># exit 1 if it is older</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--version</span>         <span class="co"># this checkout&#39;s version</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">../tcs-helpers/bin/tcs-helpers</span> <span class="at">--require</span> 0.3.0   <span class="co"># exit 1 if it is older</span></span></code></pre></div>
 <p>What the projects use from it, all in <code>packaging/</code>:</p>
 <table>
 <colgroup>
@@ -277,6 +296,19 @@ runs from the checkout:</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>packaging.mk</code></td>
+<td>The make rules for <code>stage</code>, <code>deb</code>,
+<code>rpm</code>, <code>packages</code>, <code>lint-packages</code>,
+<code>links</code> and <code>unlinks</code>, which a project’s Makefile
+includes</td>
+</tr>
+<tr>
+<td><code>build-deb.sh</code></td>
+<td>Builds a package’s .deb from its stage, for <code>make deb</code>,
+from the control file and maintainer scripts in the project’s
+<code>packaging/deb/&lt;package&gt;/DEBIAN</code></td>
+</tr>
 <tr>
 <td><code>lint-packages.sh</code></td>
 <td>Runs lintian, rpmlint and shellcheck on what
@@ -298,13 +330,14 @@ script, which links its programs into <code>/usr/local/bin</code></td>
 </tr>
 </tbody>
 </table>
-<p>What differs between projects – their Debian control files, RPM
-specs, <code>copyright.in</code>, rpmlint settings and install hooks –
-stays in each project.</p>
+<p>What differs between projects – their <code>make install</code>,
+Debian control files and maintainer scripts, RPM specs,
+<code>copyright.in</code>, rpmlint settings and install hooks – stays in
+each project.</p>
 <h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
 <p>Pull it as you would any other repository:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
 <p>The projects use whatever the checkout holds, so a change here
 reaches them at their next build. A project that needs a newer version
 than the checkout’s says so and stops, naming the version it needs.</p>
@@ -315,7 +348,7 @@ the version it requires.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
 <p>The projects then cannot build their packages until it is cloned
 again; everything else they do – building, testing, their own
 documentation – does not use it.</p>
@@ -324,8 +357,8 @@ documentation – does not use it.</p>
 in <code>~/bin</code> and an empty <code>~/lib/tcs-helpers</code>. On a
 machine where that was done, remove them before removing the
 checkout:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>That removes <code>~/bin/tcs-helpers</code> and
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
@@ -337,7 +370,9 @@ with pandoc, for reading in a browser; run it after editing
 <code>README.md</code>, and commit the two together.</p>
 <h2 id="checking">Checking</h2>
 <p><code>make check</code> runs shellcheck on every script,
-<code>links.sh.in</code> with its placeholders filled in.</p>
+<code>links.sh.in</code> with its placeholders filled in.
+<code>packaging.mk</code> is checked by the projects’ own
+<code>make packages</code> and <code>make lint-packages</code>.</p>
 <h2 id="license">License</h2>
 <p>Licensed under either of the Apache License, Version 2.0, in
 <code>LICENSE-APACHE</code>, or the MIT license, in

@@ -1,9 +1,10 @@
 # tcs-helpers
 
 tcs-helpers holds the one copy of what the TCS projects -- tcs-xtce, tcslog,
-tcslog-tools and tcspecial -- share for building their packages. Each project
-used to carry its own copy of these scripts, and the copies drifted apart; now
-there is one, and the projects use it from where it is.
+tcslog-tools and tcspecial -- share for building their packages: the make
+rules and the scripts they run. Each project used to carry its own copy of
+these, and the copies drifted apart; now there is one, and the projects use
+it from where it is.
 
 It is not installed. A project uses it from a checkout of this repository,
 by default the one beside the project, `../tcs-helpers`, so that cloning it
@@ -30,29 +31,54 @@ make packages TCS_HELPERS=/path/to/tcs-helpers
 ## Using it from a project
 
 A project's packaging -- `make install`, `make stage`, `make deb`, `make rpm`,
-`make packages` and `make lint-packages` -- runs what it needs from the
-checkout. Before it does, it checks that the checkout is there and new
-enough, and stops with a message saying what to do if not: where to clone it
-from, or to update it.
+`make packages`, `make lint-packages`, `make links` and `make unlinks` --
+runs what it needs from the checkout. All but `make install` are the rules
+in `packaging/packaging.mk`, which the project's Makefile includes after
+saying what its packages are:
+
+```make
+TCS_HELPERS ?= $(abspath $(CURDIR)/../tcs-helpers)
+TCS_HELPERS_REQUIRED := 0.3.0
+PACKAGES := tcslog
+ifneq ($(wildcard $(TCS_HELPERS)/packaging/packaging.mk),)
+include $(TCS_HELPERS)/packaging/packaging.mk
+else
+.PHONY: stage deb rpm packages lint-packages links unlinks
+stage deb rpm packages lint-packages links unlinks: tcs-helpers
+endif
+```
+
+The `else` is for a checkout that is missing or older than 0.3.0, when
+there is nothing to include: the targets then stop as the project's
+`tcs-helpers` target says. The comment at the top of `packaging.mk` lists
+what else a project gives it, such as `RPM_DEFINES` for its RPM spec, and
+what it must have in its own `packaging` directory.
+
+Before any of them runs, the project checks that the checkout is there and
+new enough, and stops with a message saying what to do if not: where to
+clone it from, or to update it.
 
 The check is the `tcs-helpers` command, which a project runs from the
 checkout:
 
 ```sh
 ../tcs-helpers/bin/tcs-helpers --version         # this checkout's version
-../tcs-helpers/bin/tcs-helpers --require 0.2.0   # exit 1 if it is older
+../tcs-helpers/bin/tcs-helpers --require 0.3.0   # exit 1 if it is older
 ```
 
 What the projects use from it, all in `packaging/`:
 
 | File | What it does |
 |---|---|
+| `packaging.mk` | The make rules for `stage`, `deb`, `rpm`, `packages`, `lint-packages`, `links` and `unlinks`, which a project's Makefile includes |
+| `build-deb.sh` | Builds a package's .deb from its stage, for `make deb`, from the control file and maintainer scripts in the project's `packaging/deb/<package>/DEBIAN` |
 | `lint-packages.sh` | Runs lintian, rpmlint and shellcheck on what `make packages` built, for `make lint-packages` |
 | `debian-files.sh` | Adds to a .deb the files Debian expects outside `/opt/tcs`: the copyright, `changelog.Debian.gz`, lintian overrides, the ldconfig trigger and `DEBIAN/md5sums`. It is given the project's `packaging/deb` directory, which holds what differs between projects |
 | `links.sh.in` | The template of each package's `<package>-links` script, which links its programs into `/usr/local/bin` |
 
-What differs between projects -- their Debian control files, RPM specs,
-`copyright.in`, rpmlint settings and install hooks -- stays in each project.
+What differs between projects -- their `make install`, Debian control files
+and maintainer scripts, RPM specs, `copyright.in`, rpmlint settings and
+install hooks -- stays in each project.
 
 ## Keeping it up to date
 
@@ -106,7 +132,8 @@ browser; run it after editing `README.md`, and commit the two together.
 ## Checking
 
 `make check` runs shellcheck on every script, `links.sh.in` with its
-placeholders filled in.
+placeholders filled in. `packaging.mk` is checked by the projects' own
+`make packages` and `make lint-packages`.
 
 ## License
 
