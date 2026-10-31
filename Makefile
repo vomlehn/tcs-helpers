@@ -1,7 +1,7 @@
 # tcs-helpers: one copy of what the tcs projects share for packaging, used
 # from this checkout rather than installed.
 #
-#   make html        write README.html from README.md
+#   make README.html write README.html from README.md
 #   make check       shellcheck every script
 #   make uninstall   remove what make install put in ~/bin and ~/lib in
 #                    version 0.1.0, which installed it
@@ -27,9 +27,6 @@ help:
 
 # README.md is the documentation; README.html is it as a page of its own,
 # with pandoc's --standalone giving it a head and a title.
-.PHONY: html
-html: README.html
-
 README.html: README.md
 	pandoc --standalone --metadata pagetitle=tcs-helpers README.md \
 		-o README.html

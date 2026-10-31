@@ -99,9 +99,9 @@ were.
 
 ## This documentation
 
-This file, `README.md`, is the documentation, in Markdown. `make html`
-writes `README.html` from it with pandoc, for reading in a browser; run it
-after editing `README.md`, and commit the two together.
+This file, `README.md`, is the documentation, in Markdown. `make
+README.html` writes `README.html` from it with pandoc, for reading in a
+browser; run it after editing `README.md`, and commit the two together.
 
 ## Checking
 
