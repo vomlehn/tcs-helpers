@@ -2,7 +2,8 @@
 # from this checkout rather than installed.
 #
 #   make README.html write README.html from README.md
-#   make check       shellcheck every script, and test
+#   make check       shellcheck every script, compile
+#                    third-party-notices.py, and test
 #                    install-packages.sh's choice of installer
 #   make uninstall   remove what make install put in ~/bin and ~/lib in
 #                    version 0.1.0, which installed it
@@ -38,6 +39,8 @@ check:
 		packaging/debian-files.sh packaging/build-deb.sh \
 		packaging/install-packages.sh packaging/test-install-packages.sh
 	packaging/test-install-packages.sh
+	python3 -I -c 'import sys; compile(open(sys.argv[1]).read(), \
+		sys.argv[1], "exec")' packaging/third-party-notices.py
 	sed -e 's|@PACKAGE@|example|g' -e 's|@PREFIX@|/opt/tcs|g' \
 		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
 		| shellcheck -s sh -

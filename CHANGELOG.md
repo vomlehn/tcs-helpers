@@ -9,6 +9,20 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.6.0] - 2026-11-10
+
+### Added
+
+- `packaging/third-party-notices.py`, which writes the notices a package
+  owes the Rust crates compiled into it, and the Rust standard library:
+  each crate with its licence, the one it is taken under where it offers
+  a choice, and the texts of the licence and notice files it ships, each
+  printed once. A project's `install-files` runs it, as
+  `$(THIRD_PARTY_NOTICES)`, to put `THIRD-PARTY-NOTICES` in each package
+  of compiled code, since nearly every crate's licence requires its
+  notices to go with every copy. `packaging/licences` holds the standard
+  texts it gives a crate that ships none.
+
 ## [0.5.0] - 2026-10-31
 
 ### Changed

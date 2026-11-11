@@ -350,6 +350,11 @@ It is given the project’s <code>packaging/deb</code> directory, which
 holds what differs between projects</td>
 </tr>
 <tr>
+<td><code>third-party-notices.py</code></td>
+<td>Writes <code>THIRD-PARTY-NOTICES</code>, the notices a package owes
+the Rust crates compiled into it: see below</td>
+</tr>
+<tr>
 <td><code>links.sh.in</code></td>
 <td>The template of each package’s <code>&lt;package&gt;-links</code>
 script, which links its programs into <code>/usr/local/bin</code></td>
@@ -360,6 +365,36 @@ script, which links its programs into <code>/usr/local/bin</code></td>
 <code>make install-files</code>, Debian control files and maintainer
 scripts, RPM specs, <code>copyright.in</code>, rpmlint settings and
 install hooks – stays in each project.</p>
+<h2 id="third-party-notices">Third-party notices</h2>
+<p>Nearly every Rust crate’s licence – MIT, Apache-2.0, the BSD
+licences, Zlib, Unicode-3.0, the SIL Open Font License of a font a crate
+embeds – requires its copyright and licence notices to go with every
+copy, and a program is a copy of the crates compiled into it. So each
+package of compiled code carries <code>THIRD-PARTY-NOTICES</code> in its
+documentation directory, which a project’s <code>install-files</code>
+writes with <code>third-party-notices.py</code>, as
+<code>packaging.mk</code>’s <code>THIRD_PARTY_NOTICES</code>:</p>
+<pre class="make"><code>$(THIRD_PARTY_NOTICES) . $(DESTDIR)$(DOCDIR)/tcslog/THIRD-PARTY-NOTICES \
+    tcslog tcslog-c</code></pre>
+<p>It is given the Cargo workspace, the file to write, the package’s
+name and the workspace’s crates the package ships, or none for all of
+them. It lists every crate those are built from for the host, without
+the ones they are only tested or built with and without procedural
+macros, as <code>cargo tree</code> resolves them with the build’s
+features, and the Rust standard library, whose notices come from the
+toolchain. Each crate is given with its licence; where it offers a
+choice, the one taken, which is the first in the script’s
+<code>PREFERRED</code> list; and every licence and notice file it ships,
+their texts following the list, each printed once. A crate that ships
+none gets the standard text of its licence from
+<code>packaging/licences</code> or <code>LICENSE-APACHE</code>, with its
+authors as the copyright holders.</p>
+<p>Slint is offered under GPL-3.0, its royalty-free licence for desktop
+applications and a commercial one; the projects take the royalty-free
+one, which they meet with Slint’s attribution badge in their
+READMEs.</p>
+<p>cargo runs offline, so the workspace must have been built, as
+<code>install-files</code> has done by then.</p>
 <h2 id="what-make-install-does-in-a-project">What
 <code>make install</code> does in a project</h2>
 <p><code>make install</code> builds the project’s packages, the .deb and
@@ -451,10 +486,10 @@ the one it installs</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>On a system it does not know, <code>make install</code> stops, naming
 the <code>ID</code> and <code>ID_LIKE</code> it read and saying to give
 <code>PACKAGE_FORMAT</code> and, if need be, <code>INSTALLER</code>. If
@@ -475,8 +510,8 @@ and which a developer can use to install without a package.
 given either.</p>
 <h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
 <p>Pull it as you would any other repository:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
 <p>The projects use whatever the checkout holds, so a change here
 reaches them at their next build. A project that needs a newer version
 than the checkout’s says so and stops, naming the version it needs.</p>
@@ -487,7 +522,7 @@ the version it requires.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
 <p>The projects then cannot build their packages until it is cloned
 again; everything else they do – building, testing, their own
 documentation – does not use it.</p>
@@ -496,8 +531,8 @@ documentation – does not use it.</p>
 in <code>~/bin</code> and an empty <code>~/lib/tcs-helpers</code>. On a
 machine where that was done, remove them before removing the
 checkout:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>That removes <code>~/bin/tcs-helpers</code> and
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
@@ -508,8 +543,9 @@ checkout:</p>
 with pandoc, for reading in a browser; run it after editing
 <code>README.md</code>, and commit the two together.</p>
 <h2 id="checking">Checking</h2>
-<p><code>make check</code> runs shellcheck on every script,
-<code>links.sh.in</code> with its placeholders filled in, and
+<p><code>make check</code> compiles <code>third-party-notices.py</code>,
+runs shellcheck on every script, <code>links.sh.in</code> with its
+placeholders filled in, and
 <code>packaging/test-install-packages.sh</code>, which runs
 <code>install-packages.sh</code> against os-release files and stand-in
 installers of its own and checks the command it would have run on each

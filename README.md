@@ -94,11 +94,46 @@ What the projects use from it, all in `packaging/`:
 | `build-deb.sh` | Builds a package's .deb from its stage, for `make deb`, from the control file and maintainer scripts in the project's `packaging/deb/<package>/DEBIAN` |
 | `lint-packages.sh` | Runs lintian, rpmlint and shellcheck on what `make packages` built, for `make lint-packages` |
 | `debian-files.sh` | Adds to a .deb the files Debian expects outside `/opt/tcs`: the copyright, `changelog.Debian.gz`, lintian overrides, the ldconfig trigger and `DEBIAN/md5sums`. It is given the project's `packaging/deb` directory, which holds what differs between projects |
+| `third-party-notices.py` | Writes `THIRD-PARTY-NOTICES`, the notices a package owes the Rust crates compiled into it: see below |
 | `links.sh.in` | The template of each package's `<package>-links` script, which links its programs into `/usr/local/bin` |
 
 What differs between projects -- their `make install-files`, Debian control files
 and maintainer scripts, RPM specs, `copyright.in`, rpmlint settings and
 install hooks -- stays in each project.
+
+## Third-party notices
+
+Nearly every Rust crate's licence -- MIT, Apache-2.0, the BSD licences,
+Zlib, Unicode-3.0, the SIL Open Font License of a font a crate embeds --
+requires its copyright and licence notices to go with every copy, and a
+program is a copy of the crates compiled into it. So each package of
+compiled code carries `THIRD-PARTY-NOTICES` in its documentation
+directory, which a project's `install-files` writes with
+`third-party-notices.py`, as `packaging.mk`'s `THIRD_PARTY_NOTICES`:
+
+```make
+$(THIRD_PARTY_NOTICES) . $(DESTDIR)$(DOCDIR)/tcslog/THIRD-PARTY-NOTICES \
+	tcslog tcslog-c
+```
+
+It is given the Cargo workspace, the file to write, the package's name and
+the workspace's crates the package ships, or none for all of them. It
+lists every crate those are built from for the host, without the ones they
+are only tested or built with and without procedural macros, as `cargo
+tree` resolves them with the build's features, and the Rust standard
+library, whose notices come from the toolchain. Each crate is given with
+its licence; where it offers a choice, the one taken, which is the first
+in the script's `PREFERRED` list; and every licence and notice file it
+ships, their texts following the list, each printed once. A crate that
+ships none gets the standard text of its licence from `packaging/licences`
+or `LICENSE-APACHE`, with its authors as the copyright holders.
+
+Slint is offered under GPL-3.0, its royalty-free licence for desktop
+applications and a commercial one; the projects take the royalty-free
+one, which they meet with Slint's attribution badge in their READMEs.
+
+cargo runs offline, so the workspace must have been built, as
+`install-files` has done by then.
 
 ## What `make install` does in a project
 
@@ -205,7 +240,8 @@ browser; run it after editing `README.md`, and commit the two together.
 
 ## Checking
 
-`make check` runs shellcheck on every script, `links.sh.in` with its
+`make check` compiles `third-party-notices.py`, runs shellcheck on every
+script, `links.sh.in` with its
 placeholders filled in, and `packaging/test-install-packages.sh`, which
 runs `install-packages.sh` against os-release files and stand-in
 installers of its own and checks the command it would have run on each

@@ -40,6 +40,11 @@
 #   RPM_DEFINES    more --define options for rpmbuild, as the specs need
 #   LINT_SCRIPTS   more shell scripts for lint-packages to check
 #
+# It also gives THIRD_PARTY_NOTICES, third-party-notices.py, which a
+# project's install-files runs to write each package's THIRD-PARTY-NOTICES:
+#
+#   $(THIRD_PARTY_NOTICES) <workspace> <output> <package> [<crate>...]
+#
 # A project keeps what differs between projects in its packaging directory:
 # packaging/deb/<package>/DEBIAN, with the control file and maintainer
 # scripts build-deb.sh takes, packaging/deb/<package>/lintian-overrides and
@@ -59,6 +64,7 @@
 # and change nothing, without SUDO: see install-packages.sh.
 
 TCS_SOURCE   ?= $(firstword $(PACKAGES))
+THIRD_PARTY_NOTICES := $(TCS_HELPERS)/packaging/third-party-notices.py
 # install-files, the project's own copy of its files into DESTDIR, rather
 # than install, which builds the packages from the stage and so would
 # stage again for ever.
