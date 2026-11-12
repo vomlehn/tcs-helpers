@@ -101,6 +101,25 @@ What differs between projects -- their `make install-files`, Debian control file
 and maintainer scripts, RPM specs, `copyright.in`, rpmlint settings and
 install hooks -- stays in each project.
 
+## HTML pages
+
+A project commits each HTML page beside the reStructuredText or Markdown
+it is built from, so that it can be read without building it. Two things
+keep those pages up to date, both from `bin/html-pages`:
+
+- The pre-commit hook, `githooks/pre-commit`. For each `.rst` or `.md`
+  file a commit changes whose directory's Makefile has a rule for its
+  page, it rebuilds the page and adds it to the commit. It refuses a
+  commit whose staged source also has changes that are not staged, since
+  the page would be built from text the commit does not hold. A
+  project's `make hooks` points git's `core.hooksPath` at this checkout's
+  `githooks`.
+- `html-pages check DIR...`, which a project's `make html-check` runs. It
+  rebuilds every page in each directory and fails, naming them, where any
+  was behind its source, which catches a commit made without the hook.
+  The pages it found behind are already rebuilt, and need only
+  committing.
+
 ## Third-party notices
 
 Nearly every Rust crate's licence -- MIT, Apache-2.0, the BSD licences,
@@ -236,7 +255,8 @@ were.
 
 This file, `README.md`, is the documentation, in Markdown. `make
 README.html` writes `README.html` from it with pandoc, for reading in a
-browser; run it after editing `README.md`, and commit the two together.
+browser; this checkout's own pre-commit hook does that and commits the two
+together once `make hooks` has been run here.
 
 ## Checking
 

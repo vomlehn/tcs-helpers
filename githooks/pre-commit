@@ -1,0 +1,7 @@
+#!/bin/sh
+# The pre-commit hook of a TCS project that commits HTML pages beside their
+# sources: each page of a source the commit changes is rebuilt and added to
+# it. A project sets git's core.hooksPath to this directory with
+# `make hooks`.
+
+exec "$(dirname "$0")/../bin/html-pages" stage

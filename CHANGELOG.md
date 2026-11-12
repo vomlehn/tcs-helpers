@@ -9,6 +9,17 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.7.0] - 2026-11-11
+
+### Added
+
+- `bin/html-pages` and the pre-commit hook `githooks/pre-commit`, which
+  keep a project's committed HTML pages up to date: the hook rebuilds the
+  page of each `.rst` or `.md` source a commit changes and adds it to the
+  commit, and `html-pages check DIR...` fails, naming them, where a page
+  is behind its source. A project's `make hooks` sets `core.hooksPath` to
+  `githooks`.
+
 ## [0.6.0] - 2026-11-10
 
 ### Added

@@ -1,0 +1,142 @@
+#!/bin/sh
+# html-pages: keeps the HTML pages a TCS project commits beside their
+# reStructuredText or markdown sources up to date.
+#
+#   html-pages stage          rebuild the page of each source staged for the
+#                             next commit and stage it too: the pre-commit
+#                             hook, githooks/pre-commit, runs this
+#   html-pages check DIR...   rebuild every page in each DIR, with make's
+#                             html target there or else its default, and
+#                             fail, naming them, where any was behind its
+#                             source
+#
+# Each page is built by make in its own directory, from the rule there for
+# it: a source whose directory has no rule for its page has none.
+#
+# It is run from the checkout, as everything in tcs-helpers is, in the top
+# directory of the project's work tree.
+
+set -eu
+
+# Prints how to call this command.
+usage() {
+	echo "usage: html-pages stage | check DIR..."
+}
+
+# Says whether the directory's Makefile has a rule for a page.
+#
+# Arguments:
+#   $1  The directory.
+#   $2  The page's name within it.
+#
+# Returns:
+#   0 if make there knows how to build the page, 1 otherwise.
+has_rule() {
+	[ -f "$1/Makefile" ] || return 1
+	make -C "$1" -n -B "$2" > /dev/null 2>&1
+}
+
+# Rebuilds the page of each staged source, and stages it.
+#
+# A source with changes that are not staged is refused: its page would be
+# built from text the commit does not hold.
+#
+# Returns:
+#   0 when every page is built and staged, 1 when one cannot be.
+stage() {
+	failed=0
+	staged=$(git diff --cached --name-only --diff-filter=ACMR -- \
+		'*.rst' '*.md')
+	for source in $staged; do
+		dir=$(dirname "$source")
+		page=$(basename "${source%.*}").html
+		has_rule "$dir" "$page" || continue
+		if ! git diff --quiet -- "$source"; then
+			echo "html-pages: $source has changes that are not" \
+			     "staged, so its page cannot be built from what is" \
+			     "committed: stage them, or stash them" \
+			     "(git stash --keep-index)" >&2
+			failed=1
+			continue
+		fi
+		if ! make -s -B -C "$dir" "$page" > /dev/null; then
+			echo "html-pages: $dir/$page could not be built" >&2
+			failed=1
+			continue
+		fi
+		git add -- "$dir/$page"
+	done
+	return $failed
+}
+
+# Rebuilds every page in each directory and names those that changed.
+#
+# Each directory's html target builds its pages where it has one, and its
+# default target where it does not.
+#
+# Every page is made again whatever make thinks of it, since a checkout's
+# times say nothing of which was written last. Made in place, so a page
+# found behind is already up to date, and needs only committing. What is
+# compared is every page, and every figure a page is drawn from, that git
+# knows of in the directories.
+#
+# Arguments:
+#   $@  The directories whose make builds their pages.
+#
+# Returns:
+#   0 when none was behind, 1 otherwise.
+check() {
+	sums=$(mktemp)
+	# shellcheck disable=SC2046 # each file a word
+	md5sum $(for dir in "$@"; do
+		git ls-files "$dir/*.html" "$dir/*.svg"
+	done) > "$sums"
+	for dir in "$@"; do
+		# A directory whose default target builds more than its pages,
+		# such as an example's programs, has an html target for them.
+		target=
+		if has_rule "$dir" html; then
+			target=html
+		fi
+		# shellcheck disable=SC2086 # no target is no word
+		if ! make -s -B -C "$dir" $target > /dev/null; then
+			rm -f "$sums"
+			echo "html-pages: the pages in $dir could not be built" >&2
+			return 1
+		fi
+	done
+	behind=$(md5sum --quiet -c "$sums" 2> /dev/null |
+		sed 's/: FAILED$//') || true
+	rm -f "$sums"
+	if [ -n "$behind" ]; then
+		echo "These pages were behind their sources, and are made" \
+		     "again now: commit them" >&2
+		echo "$behind" | sed 's/^/  /' >&2
+		return 1
+	fi
+}
+
+if [ $# -eq 0 ]; then
+	usage >&2
+	exit 2
+fi
+case "$1" in
+stage)
+	stage
+	;;
+check)
+	shift
+	if [ $# -eq 0 ]; then
+		usage >&2
+		exit 2
+	fi
+	check "$@"
+	;;
+-h | --help)
+	usage
+	;;
+*)
+	usage >&2
+	exit 2
+	;;
+esac

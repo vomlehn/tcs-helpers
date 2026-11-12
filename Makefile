@@ -2,6 +2,8 @@
 # from this checkout rather than installed.
 #
 #   make README.html write README.html from README.md
+#   make hooks       have git run githooks/pre-commit here, which keeps
+#                    README.html up to date in each commit
 #   make check       shellcheck every script, compile
 #                    third-party-notices.py, and test
 #                    install-packages.sh's choice of installer
@@ -33,9 +35,14 @@ README.html: README.md
 	pandoc --standalone --metadata pagetitle=tcs-helpers README.md \
 		-o README.html
 
+.PHONY: hooks
+hooks:
+	git config core.hooksPath githooks
+
 .PHONY: check
 check:
-	shellcheck bin/tcs-helpers packaging/lint-packages.sh \
+	shellcheck bin/tcs-helpers bin/html-pages githooks/pre-commit \
+		packaging/lint-packages.sh \
 		packaging/debian-files.sh packaging/build-deb.sh \
 		packaging/install-packages.sh packaging/test-install-packages.sh
 	packaging/test-install-packages.sh
