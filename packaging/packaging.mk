@@ -18,6 +18,11 @@
 #                  shellcheck
 #   links          link the installed programs into LINKDIR; unlinks
 #                  removes the links
+#   publish-release
+#                  build the packages and publish them as the GitHub
+#                  release of RELEASE_TAG, with the notes in
+#                  RELEASE_NOTES and the attributions RELEASE_ATTRIBUTION
+#                  names: see release.sh
 #
 # from what the project says before including it:
 #
@@ -39,6 +44,10 @@
 #   STAGE_VARS     more variables the stage's install-files is given
 #   RPM_DEFINES    more --define options for rpmbuild, as the specs need
 #   LINT_SCRIPTS   more shell scripts for lint-packages to check
+#   RELEASE_ATTRIBUTION  the attributions, from tcs-helpers'
+#                  packaging/attribution, that a licence of something
+#                  compiled into the packages asks to be shown where they
+#                  are downloaded, such as slint
 #
 # It also gives THIRD_PARTY_NOTICES, third-party-notices.py, which a
 # project's install-files runs to write each package's THIRD-PARTY-NOTICES:
@@ -254,6 +263,23 @@ install: tcs-helpers		## Build packages, install with apt/dnf/zypper
 uninstall: tcs-helpers		## Remove the installed packages
 	$(call refuse-copy-vars,uninstall,removes,remove the copy in)
 	$(INSTALL_PACKAGES) remove $(PACKAGES)
+
+# Build the packages and publish them as a GitHub release, after checking
+# that the tag is on GitHub, that it has no release yet and that every
+# package carries THIRD-PARTY-NOTICES: see release.sh. RELEASE_TAG, by
+# default v$(VERSION), RELEASE_NOTES, a Markdown file, and RELEASE_FLAGS,
+# more of gh release create's options such as --prerelease, come from the
+# command line; RELEASE_ATTRIBUTION from the project, since it follows
+# from what the packages hold rather than from the release.
+RELEASE_TAG   ?= v$(VERSION)
+RELEASE_NOTES ?=
+RELEASE_ATTRIBUTION ?=
+.PHONY: publish-release
+publish-release: tcs-helpers	## Build packages and publish a GitHub release
+	$(MAKE) --no-print-directory packages
+	RELEASE_FLAGS='$(RELEASE_FLAGS)' $(TCS_HELPERS)/packaging/release.sh \
+		'$(RELEASE_TAG)' '$(RELEASE_NOTES)' '$(RELEASE_ATTRIBUTION)' \
+		$(DEB_FILES) -- $(RPM_FILES)
 
 # Link the installed programs into LINKDIR, which every environment
 # searches, or take those links away, with the <package>-links script the

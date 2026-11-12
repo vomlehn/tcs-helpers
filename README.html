@@ -355,6 +355,17 @@ holds what differs between projects</td>
 the Rust crates compiled into it: see below</td>
 </tr>
 <tr>
+<td><code>release.sh</code></td>
+<td>Publishes the packages as a GitHub release, for
+<code>make publish-release</code>: see below</td>
+</tr>
+<tr>
+<td><code>attribution/</code></td>
+<td>The attributions a licence asks to be shown where packages are
+downloaded, which <code>make publish-release</code> adds to a release’s
+notes</td>
+</tr>
+<tr>
 <td><code>links.sh.in</code></td>
 <td>The template of each package’s <code>&lt;package&gt;-links</code>
 script, which links its programs into <code>/usr/local/bin</code></td>
@@ -365,6 +376,26 @@ script, which links its programs into <code>/usr/local/bin</code></td>
 <code>make install-files</code>, Debian control files and maintainer
 scripts, RPM specs, <code>copyright.in</code>, rpmlint settings and
 install hooks – stays in each project.</p>
+<h2 id="html-pages">HTML pages</h2>
+<p>A project commits each HTML page beside the reStructuredText or
+Markdown it is built from, so that it can be read without building it.
+Two things keep those pages up to date, both from
+<code>bin/html-pages</code>:</p>
+<ul>
+<li>The pre-commit hook, <code>githooks/pre-commit</code>. For each
+<code>.rst</code> or <code>.md</code> file a commit changes whose
+directory’s Makefile has a rule for its page, it rebuilds the page and
+adds it to the commit. It refuses a commit whose staged source also has
+changes that are not staged, since the page would be built from text the
+commit does not hold. A project’s <code>make hooks</code> points git’s
+<code>core.hooksPath</code> at this checkout’s
+<code>githooks</code>.</li>
+<li><code>html-pages check DIR...</code>, which a project’s
+<code>make html-check</code> runs. It rebuilds every page in each
+directory and fails, naming them, where any was behind its source, which
+catches a commit made without the hook. The pages it found behind are
+already rebuilt, and need only committing.</li>
+</ul>
 <h2 id="third-party-notices">Third-party notices</h2>
 <p>Nearly every Rust crate’s licence – MIT, Apache-2.0, the BSD
 licences, Zlib, Unicode-3.0, the SIL Open Font License of a font a crate
@@ -395,6 +426,24 @@ one, which they meet with Slint’s attribution badge in their
 READMEs.</p>
 <p>cargo runs offline, so the workspace must have been built, as
 <code>install-files</code> has done by then.</p>
+<h2 id="publishing-a-release">Publishing a release</h2>
+<p><code>make publish-release</code> builds the project’s packages and
+publishes them as a GitHub release, with <code>gh</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> tag v1.2.0 <span class="kw">&amp;&amp;</span> <span class="fu">git</span> push origin v1.2.0</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_NOTES=notes.md</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_TAG=rc10 RELEASE_NOTES=notes.md <span class="dt">\</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    RELEASE_FLAGS=--prerelease</span></code></pre></div>
+<p>The notes are the project’s, written for the release. After them come
+the attributions the project names in <code>RELEASE_ATTRIBUTION</code>,
+each from <code>packaging/attribution/&lt;name&gt;.md</code>: a licence
+of something compiled into the packages may ask to be credited where the
+packages are downloaded, as Slint’s royalty-free licence does, and the
+project says so once rather than each release remembering it:</p>
+<pre class="make"><code>RELEASE_ATTRIBUTION := slint</code></pre>
+<p>Nothing is published if the tag is not on GitHub, the tag has a
+release already, or a package has no <code>THIRD-PARTY-NOTICES</code>. A
+release that exists is left alone; replace its files with
+<code>gh release upload --clobber</code>.</p>
 <h2 id="what-make-install-does-in-a-project">What
 <code>make install</code> does in a project</h2>
 <p><code>make install</code> builds the project’s packages, the .deb and
@@ -486,10 +535,10 @@ the one it installs</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>On a system it does not know, <code>make install</code> stops, naming
 the <code>ID</code> and <code>ID_LIKE</code> it read and saying to give
 <code>PACKAGE_FORMAT</code> and, if need be, <code>INSTALLER</code>. If
@@ -510,8 +559,8 @@ and which a developer can use to install without a package.
 given either.</p>
 <h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
 <p>Pull it as you would any other repository:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
 <p>The projects use whatever the checkout holds, so a change here
 reaches them at their next build. A project that needs a newer version
 than the checkout’s says so and stops, naming the version it needs.</p>
@@ -522,7 +571,8 @@ the version it requires.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
 <p>The projects then cannot build their packages until it is cloned
 again; everything else they do – building, testing, their own
 documentation – does not use it.</p>
@@ -531,8 +581,9 @@ documentation – does not use it.</p>
 in <code>~/bin</code> and an empty <code>~/lib/tcs-helpers</code>. On a
 machine where that was done, remove them before removing the
 checkout:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>That removes <code>~/bin/tcs-helpers</code> and
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
@@ -540,8 +591,9 @@ checkout:</p>
 <h2 id="this-documentation">This documentation</h2>
 <p>This file, <code>README.md</code>, is the documentation, in Markdown.
 <code>make README.html</code> writes <code>README.html</code> from it
-with pandoc, for reading in a browser; run it after editing
-<code>README.md</code>, and commit the two together.</p>
+with pandoc, for reading in a browser; this checkout’s own pre-commit
+hook does that and commits the two together once <code>make hooks</code>
+has been run here.</p>
 <h2 id="checking">Checking</h2>
 <p><code>make check</code> compiles <code>third-party-notices.py</code>,
 runs shellcheck on every script, <code>links.sh.in</code> with its

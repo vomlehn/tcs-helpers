@@ -9,6 +9,22 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.8.0] - 2026-11-11
+
+### Added
+
+- `make publish-release` in `packaging.mk`, with `packaging/release.sh`:
+  builds the packages and publishes them as the GitHub release of
+  `RELEASE_TAG` (`v$(VERSION)` unless given), with the notes in
+  `RELEASE_NOTES` and, after them, each attribution the project names in
+  `RELEASE_ATTRIBUTION`, from `packaging/attribution`. It stops before
+  publishing anything if the tag is not on GitHub, the release exists,
+  or a package has no `THIRD-PARTY-NOTICES`. It is not `release`, which
+  tcspecial's Makefile has for a release build.
+- `packaging/attribution/slint.md`, the "Made with Slint" badge that
+  Slint's royalty-free licence asks to be shown where the programs are
+  downloaded, for the projects whose programs are built with Slint.
+
 ## [0.7.0] - 2026-11-11
 
 ### Added

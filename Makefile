@@ -44,7 +44,8 @@ check:
 	shellcheck bin/tcs-helpers bin/html-pages githooks/pre-commit \
 		packaging/lint-packages.sh \
 		packaging/debian-files.sh packaging/build-deb.sh \
-		packaging/install-packages.sh packaging/test-install-packages.sh
+		packaging/install-packages.sh \
+		packaging/test-install-packages.sh packaging/release.sh
 	packaging/test-install-packages.sh
 	python3 -I -c 'import sys; compile(open(sys.argv[1]).read(), \
 		sys.argv[1], "exec")' packaging/third-party-notices.py

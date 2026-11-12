@@ -95,6 +95,8 @@ What the projects use from it, all in `packaging/`:
 | `lint-packages.sh` | Runs lintian, rpmlint and shellcheck on what `make packages` built, for `make lint-packages` |
 | `debian-files.sh` | Adds to a .deb the files Debian expects outside `/opt/tcs`: the copyright, `changelog.Debian.gz`, lintian overrides, the ldconfig trigger and `DEBIAN/md5sums`. It is given the project's `packaging/deb` directory, which holds what differs between projects |
 | `third-party-notices.py` | Writes `THIRD-PARTY-NOTICES`, the notices a package owes the Rust crates compiled into it: see below |
+| `release.sh` | Publishes the packages as a GitHub release, for `make publish-release`: see below |
+| `attribution/` | The attributions a licence asks to be shown where packages are downloaded, which `make publish-release` adds to a release's notes |
 | `links.sh.in` | The template of each package's `<package>-links` script, which links its programs into `/usr/local/bin` |
 
 What differs between projects -- their `make install-files`, Debian control files
@@ -153,6 +155,34 @@ one, which they meet with Slint's attribution badge in their READMEs.
 
 cargo runs offline, so the workspace must have been built, as
 `install-files` has done by then.
+
+## Publishing a release
+
+`make publish-release` builds the project's packages and publishes them as a
+GitHub release, with `gh`:
+
+```sh
+git tag v1.2.0 && git push origin v1.2.0
+make publish-release RELEASE_NOTES=notes.md
+make publish-release RELEASE_TAG=rc10 RELEASE_NOTES=notes.md \
+	RELEASE_FLAGS=--prerelease
+```
+
+The notes are the project's, written for the release. After them come
+the attributions the project names in `RELEASE_ATTRIBUTION`, each from
+`packaging/attribution/<name>.md`: a licence of something compiled into
+the packages may ask to be credited where the packages are downloaded,
+as Slint's royalty-free licence does, and the project says so once
+rather than each release remembering it:
+
+```make
+RELEASE_ATTRIBUTION := slint
+```
+
+Nothing is published if the tag is not on GitHub, the tag has a release
+already, or a package has no `THIRD-PARTY-NOTICES`. A release that
+exists is left alone; replace its files with `gh release upload
+--clobber`.
 
 ## What `make install` does in a project
 
