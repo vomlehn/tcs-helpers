@@ -382,20 +382,58 @@ Markdown it is built from, so that it can be read without building it.
 Two things keep those pages up to date, both from
 <code>bin/html-pages</code>:</p>
 <ul>
-<li>The pre-commit hook, <code>githooks/pre-commit</code>. For each
-<code>.rst</code> or <code>.md</code> file a commit changes whose
-directory’s Makefile has a rule for its page, it rebuilds the page and
-adds it to the commit. It refuses a commit whose staged source also has
-changes that are not staged, since the page would be built from text the
-commit does not hold. A project’s <code>make hooks</code> points git’s
-<code>core.hooksPath</code> at this checkout’s
-<code>githooks</code>.</li>
+<li>The pre-commit hook, <code>githooks/pre-commit</code>, which also
+checks the names first: see <a href="#production-names">Production
+names</a>. For each <code>.rst</code> or <code>.md</code> file a commit
+changes whose directory’s Makefile has a rule for its page, it rebuilds
+the page and adds it to the commit. It refuses a commit whose staged
+source also has changes that are not staged, since the page would be
+built from text the commit does not hold. A project’s
+<code>make hooks</code> points git’s <code>core.hooksPath</code> at this
+checkout’s <code>githooks</code>.</li>
 <li><code>html-pages check DIR...</code>, which a project’s
 <code>make html-check</code> runs. It rebuilds every page in each
 directory and fails, naming them, where any was behind its source, which
 catches a commit made without the hook. The pages it found behind are
 already rebuilt, and need only committing.</li>
 </ul>
+<h2 id="production-names">Production names</h2>
+<p>TCS code is of two kinds. Production code is code a mission depends
+on while it operates: vehicle code, aboard the vehicle, and MOC code, in
+the mission operations centre. Everything else – editors, simulators,
+test stations, generators, packaging – is non-production code. A name
+says which: find the prefix, <code>tcslog</code> if the name starts with
+it and <code>tcs</code> otherwise. A letter after it, or nothing, is
+production (<code>tcspecial</code>, <code>tcsmoc</code>,
+<code>tcslog</code>, <code>tcslogc</code>, <code>tcsxtce</code>); a
+hyphen or an underscore is not (<code>tcs-gui</code>,
+<code>tcs-verify</code>, <code>tcs_xtce</code>,
+<code>tcslog-tools</code>). The rule covers published names, libraries,
+executables and header files, and not projects or the packages they
+install with. tcspecial’s design, “Production code and its names”, gives
+the requirements.</p>
+<p>Production code is built only from production code, and
+<code>bin/production-names</code> holds a project to that. It is the one
+statement of the rule, and every project runs it from
+<code>make production-names</code>, which its <code>make check</code>
+runs:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="va">$(</span><span class="ex">TCS_HELPERS</span><span class="va">)</span><span class="ex">/bin/production-names</span> <span class="dt">\</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--pyproject</span> python/pyproject.toml <span class="dt">\</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--install</span> tcspecial <span class="at">--install</span> tcs-moc <span class="dt">\</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--desk-feature</span> tcspecial/visual=tcs-diagram <span class="dt">\</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--except</span> <span class="st">&#39;tcs-xtce=why, until it can go&#39;</span></span></code></pre></div>
+<p>It fails where a production crate of the project’s Cargo manifests
+(<code>--manifest</code>, or <code>./Cargo.toml</code>) is built from a
+crate with a non-production name, or where a production Python package
+of a <code>--pyproject</code> imports one. <code>--install</code> names
+the crates a project builds together for installing, which cargo builds
+with their features pooled; they are checked as so built, and a
+<code>--desk-feature</code> found on in that build – tcspecial’s visual
+window, which never flies – is a warning, as is each name given with
+<code>--except</code>, every run, until it is gone. The pre-commit hook
+runs <code>make production-names</code> too, when a commit changes a
+Cargo manifest or lock file, a <code>pyproject.toml</code> or Python, so
+that a dependency on a tool is refused when it is committed.</p>
 <h2 id="third-party-notices">Third-party notices</h2>
 <p>Nearly every Rust crate’s licence – MIT, Apache-2.0, the BSD
 licences, Zlib, Unicode-3.0, the SIL Open Font License of a font a crate
@@ -429,10 +467,10 @@ READMEs.</p>
 <h2 id="publishing-a-release">Publishing a release</h2>
 <p><code>make publish-release</code> builds the project’s packages and
 publishes them as a GitHub release, with <code>gh</code>:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> tag v1.2.0 <span class="kw">&amp;&amp;</span> <span class="fu">git</span> push origin v1.2.0</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_NOTES=notes.md</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_TAG=rc10 RELEASE_NOTES=notes.md <span class="dt">\</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    RELEASE_FLAGS=--prerelease</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> tag v1.2.0 <span class="kw">&amp;&amp;</span> <span class="fu">git</span> push origin v1.2.0</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_NOTES=notes.md</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> publish-release RELEASE_TAG=rc10 RELEASE_NOTES=notes.md <span class="dt">\</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    RELEASE_FLAGS=--prerelease</span></code></pre></div>
 <p>The notes are the project’s, written for the release. After them come
 the attributions the project names in <code>RELEASE_ATTRIBUTION</code>,
 each from <code>packaging/attribution/&lt;name&gt;.md</code>: a licence
@@ -535,10 +573,10 @@ the one it installs</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install DRY_RUN=1                      <span class="co"># see what it would do</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> install                                <span class="co"># do it</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="va">PACKAGE_FORMAT</span><span class="op">=</span>rpm <span class="fu">make</span> install DRY_RUN=1   <span class="co"># the RPM, on any system</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>On a system it does not know, <code>make install</code> stops, naming
 the <code>ID</code> and <code>ID_LIKE</code> it read and saying to give
 <code>PACKAGE_FORMAT</code> and, if need be, <code>INSTALLER</code>. If
@@ -559,8 +597,9 @@ and which a developer can use to install without a package.
 given either.</p>
 <h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
 <p>Pull it as you would any other repository:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull</span></code></pre></div>
 <p>The projects use whatever the checkout holds, so a change here
 reaches them at their next build. A project that needs a newer version
 than the checkout’s says so and stops, naming the version it needs.</p>
@@ -571,8 +610,8 @@ the version it requires.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
-<div class="sourceCode" id="cb10"><pre
-class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> ~/working/tcs-helpers</span></code></pre></div>
 <p>The projects then cannot build their packages until it is cloned
 again; everything else they do – building, testing, their own
 documentation – does not use it.</p>
@@ -581,9 +620,9 @@ documentation – does not use it.</p>
 in <code>~/bin</code> and an empty <code>~/lib/tcs-helpers</code>. On a
 machine where that was done, remove them before removing the
 checkout:</p>
-<div class="sourceCode" id="cb11"><pre
-class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> uninstall</span></code></pre></div>
 <p>That removes <code>~/bin/tcs-helpers</code> and
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
@@ -595,9 +634,11 @@ with pandoc, for reading in a browser; this checkout’s own pre-commit
 hook does that and commits the two together once <code>make hooks</code>
 has been run here.</p>
 <h2 id="checking">Checking</h2>
-<p><code>make check</code> compiles <code>third-party-notices.py</code>,
-runs shellcheck on every script, <code>links.sh.in</code> with its
-placeholders filled in, and
+<p><code>make check</code> runs
+<code>bin/production-names --self-test</code>, which holds the rule to
+names it must judge rightly, compiles
+<code>third-party-notices.py</code>, runs shellcheck on every script,
+<code>links.sh.in</code> with its placeholders filled in, and
 <code>packaging/test-install-packages.sh</code>, which runs
 <code>install-packages.sh</code> against os-release files and stand-in
 installers of its own and checks the command it would have run on each

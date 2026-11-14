@@ -53,6 +53,8 @@ check:
 		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
 		| shellcheck -s sh -
 	@echo "shellcheck found nothing"
+	python3 -I bin/production-names --self-test
+	@echo "production-names judges every name it is tested with rightly"
 
 .PHONY: uninstall
 uninstall:

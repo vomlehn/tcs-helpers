@@ -1,7 +1,22 @@
 #!/bin/sh
-# The pre-commit hook of a TCS project that commits HTML pages beside their
-# sources: each page of a source the commit changes is rebuilt and added to
-# it. A project sets git's core.hooksPath to this directory with
-# `make hooks`.
+# The pre-commit hook of a TCS project. A project sets git's core.hooksPath
+# to this directory with `make hooks`.
+#
+# First the names. Where the commit changes something production-names
+# reads -- a Cargo manifest or lock file, a pyproject.toml, or Python -- and
+# the project's Makefile has a production-names target, that target is run,
+# and the commit is refused if production code would be built from code
+# with a non-production name.
+#
+# Then the pages: each page of a source the commit changes is rebuilt and
+# added to it.
+
+set -e
+
+if git diff --cached --name-only --diff-filter=ACMR \
+	| grep -qE '(^|/)(Cargo\.(toml|lock)|pyproject\.toml)$|\.py$' &&
+   make -n production-names > /dev/null 2>&1; then
+	make --no-print-directory -s production-names
+fi
 
 exec "$(dirname "$0")/../bin/html-pages" stage

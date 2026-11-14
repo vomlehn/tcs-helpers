@@ -109,7 +109,8 @@ A project commits each HTML page beside the reStructuredText or Markdown
 it is built from, so that it can be read without building it. Two things
 keep those pages up to date, both from `bin/html-pages`:
 
-- The pre-commit hook, `githooks/pre-commit`. For each `.rst` or `.md`
+- The pre-commit hook, `githooks/pre-commit`, which also checks the names
+  first: see [Production names](#production-names). For each `.rst` or `.md`
   file a commit changes whose directory's Makefile has a rule for its
   page, it rebuilds the page and adds it to the commit. It refuses a
   commit whose staged source also has changes that are not staged, since
@@ -121,6 +122,45 @@ keep those pages up to date, both from `bin/html-pages`:
   was behind its source, which catches a commit made without the hook.
   The pages it found behind are already rebuilt, and need only
   committing.
+
+## Production names
+
+TCS code is of two kinds. Production code is code a mission depends on
+while it operates: vehicle code, aboard the vehicle, and MOC code, in the
+mission operations centre. Everything else -- editors, simulators, test
+stations, generators, packaging -- is non-production code. A name says
+which: find the prefix, `tcslog` if the name starts with it and `tcs`
+otherwise. A letter after it, or nothing, is production (`tcspecial`,
+`tcsmoc`, `tcslog`, `tcslogc`, `tcsxtce`); a hyphen or an underscore is
+not (`tcs-gui`, `tcs-verify`, `tcs_xtce`, `tcslog-tools`). The rule covers
+published names, libraries, executables and header files, and not
+projects or the packages they install with. tcspecial's design,
+"Production code and its names", gives the requirements.
+
+Production code is built only from production code, and
+`bin/production-names` holds a project to that. It is the one statement of
+the rule, and every project runs it from `make production-names`, which its
+`make check` runs:
+
+```sh
+$(TCS_HELPERS)/bin/production-names \
+	--pyproject python/pyproject.toml \
+	--install tcspecial --install tcs-moc \
+	--desk-feature tcspecial/visual=tcs-diagram \
+	--except 'tcs-xtce=why, until it can go'
+```
+
+It fails where a production crate of the project's Cargo manifests
+(`--manifest`, or `./Cargo.toml`) is built from a crate with a
+non-production name, or where a production Python package of a
+`--pyproject` imports one. `--install` names the crates a project builds
+together for installing, which cargo builds with their features pooled;
+they are checked as so built, and a `--desk-feature` found on in that
+build -- tcspecial's visual window, which never flies -- is a warning, as is
+each name given with `--except`, every run, until it is gone. The
+pre-commit hook runs `make production-names` too, when a commit changes a
+Cargo manifest or lock file, a `pyproject.toml` or Python, so that a
+dependency on a tool is refused when it is committed.
 
 ## Third-party notices
 
@@ -290,7 +330,9 @@ together once `make hooks` has been run here.
 
 ## Checking
 
-`make check` compiles `third-party-notices.py`, runs shellcheck on every
+`make check` runs `bin/production-names --self-test`, which holds the rule
+to names it must judge rightly, compiles `third-party-notices.py`, runs
+shellcheck on every
 script, `links.sh.in` with its
 placeholders filled in, and `packaging/test-install-packages.sh`, which
 runs `install-packages.sh` against os-release files and stand-in

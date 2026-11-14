@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""production-names: holds a TCS project's names to what they say.
+
+Production code is code a mission depends on while it operates: vehicle
+code, which runs aboard the vehicle, and MOC code, which runs in the
+mission operations centre. Everything else -- editors, simulators, test
+stations, generators, packaging -- is non-production code. A TCS name says
+which it is: find the prefix, `tcslog` if the name starts with it and `tcs`
+otherwise, and look at what follows. A letter, or nothing, is production
+(tcspecial, tcsmoc, tcsprotocol, tcslog, tcslogc, tcsxtce); a hyphen or an
+underscore is not (tcs-gui, tcs-verify, tcs_xtce, tcslog-tools). A name
+that does not start with `tcs` is not TCS's, and nothing is said of it.
+This is the one statement of that rule: every TCS project checks itself
+with it. tcspecial's design, "Production code and its names", gives the
+requirements.
+
+Production code is built only from production code. What is checked:
+
+  * every production crate of each Cargo manifest given, by its normal
+    dependencies: none may have a non-production name;
+  * the crates given with --install, as one cargo run builds them, their
+    features pooled: likewise. A feature given with --desk-feature that is
+    on in that build is a warning, not an error, and so are the
+    non-production crates it is allowed to bring: it is for a build on a
+    desk, never one to fly;
+  * every production Python package each pyproject.toml given installs:
+    it imports nothing with a non-production name.
+
+A name given with --except is warned of on every run, with why, rather
+than refused, until it can go.
+
+usage: production-names [--manifest CARGO_TOML]... [--install CRATE]...
+                        [--features FEATURES]
+                        [--desk-feature CRATE/FEATURE=CRATE[,CRATE...]]...
+                        [--except NAME=WHY]... [--pyproject PYPROJECT]...
+       production-names --self-test
+
+With no --manifest, the Cargo.toml in the current directory, if there is
+one. Exits 0 if nothing is wrong, warnings or not, and 1 otherwise.
+"""
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+#: One line of `cargo tree --prefix depth --format '{p}|{f}'`: the depth,
+#: the crate's name, and its features.
+TREE_LINE = re.compile(r"^(\d+)(\S+) v\S+.*?\|(.*)$")
+
+#: An import in Python, by the name of the top package imported.
+IMPORT = re.compile(r"^\s*(?:from|import)\s+([A-Za-z_]\w*)", re.M)
+
+#: Names and whether each is production code's, for --self-test.
+SELF_TEST = {
+	"tcspecial": True, "tcsmoc": True, "tcsmoc-c": True,
+	"tcsprotocol": True, "tcslog": True, "tcslogc": True,
+	"tcsxtce": True, "tcs-gui": False, "tcs-verify": False,
+	"tcs_xtce": False, "tcslog-tools": False, "tcslog_tools": False,
+	"tcs-diagram": False, "serde": False, "slint": False,
+}
+
+
+def prefix_of(name):
+	"""Gives the TCS prefix a name starts with.
+
+	Args:
+		name: A crate's, a library's or a package's name.
+
+	Returns:
+		`tcslog` or `tcs`, the longer one where both fit; or None
+		for a name that is not TCS's.
+	"""
+	for prefix in ("tcslog", "tcs"):
+		if name.startswith(prefix):
+			return prefix
+	return None
+
+
+def is_production(name):
+	"""Says whether a name is production code's.
+
+	Args:
+		name: Any crate's, library's or package's name.
+
+	Returns:
+		True for a TCS name with a letter, or nothing, after its
+		prefix.
+	"""
+	prefix = prefix_of(name)
+	if prefix is None:
+		return False
+	rest = name[len(prefix):]
+	return rest == "" or rest[0].isalpha()
+
+
+def is_tool(name):
+	"""Says whether a name is non-production code's.
+
+	Args:
+		name: Any crate's, library's or package's name.
+
+	Returns:
+		True for a TCS name with a hyphen or an underscore after its
+		prefix.
+	"""
+	return prefix_of(name) is not None and not is_production(name)
+
+
+def run(command):
+	"""Runs a command and gives what it printed.
+
+	Args:
+		command: The command and its arguments.
+
+	Returns:
+		Its standard output.
+	"""
+	return subprocess.run(command, check=True, capture_output=True,
+			      text=True).stdout
+
+
+def crates_of(manifest):
+	"""Lists the crates a Cargo manifest builds.
+
+	Args:
+		manifest: The Cargo.toml: a workspace's or one crate's.
+
+	Returns:
+		The name of each crate of the workspace, or of the one crate.
+	"""
+	out = run(["cargo", "metadata", "--no-deps", "--offline",
+		   "--format-version", "1", "--manifest-path", str(manifest)])
+	return [package["name"] for package in json.loads(out)["packages"]]
+
+
+def trees(manifest, crates, features):
+	"""Gives the normal-dependency trees of crates built in one run.
+
+	Args:
+		manifest: The Cargo.toml the crates are in.
+		crates:   The crates, given to cargo together, as a build of
+		          them all would be, so that their features are
+		          pooled.
+		features: Features to build with, as cargo's --features
+		          takes them, or None.
+
+	Returns:
+		A dict from each of crates to a list of (name, features)
+		for it and every crate it is built from, its own first.
+	"""
+	command = ["cargo", "tree", "--offline", "--no-dedupe",
+		   "-e", "normal", "--prefix", "depth",
+		   "--format", "{p}|{f}", "--manifest-path", str(manifest)]
+	for crate in crates:
+		command += ["-p", crate]
+	if features:
+		command += ["--features", features]
+	found, root = {}, None
+	for line in run(command).splitlines():
+		m = TREE_LINE.match(line)
+		if not m:
+			continue
+		if m.group(1) == "0":
+			root = m.group(2)
+			found.setdefault(root, [])
+		if root is not None:
+			feats = set(filter(None, m.group(3).split(",")))
+			found[root].append((m.group(2), feats))
+	return found
+
+
+def tools_in(crate, built_from, found, allowed=()):
+	"""Notes each non-production crate a production crate is built from.
+
+	Args:
+		crate:      The crate.
+		built_from: (name, features) for it and every crate it is
+		            built from, as trees gives them.
+		found:      A dict from each non-production name found to
+		            the crates built from it, which this adds to.
+		allowed:    Names to pass over, as a desk feature brings
+		            them.
+	"""
+	for name in sorted({name for name, _ in built_from[1:]}):
+		if is_tool(name) and name not in allowed:
+			found.setdefault(name, []).append(crate)
+
+
+def desk_features(crate, own, desk, warnings):
+	"""Says which desk features an installed crate is built with.
+
+	Args:
+		crate:    The installed crate.
+		own:      The features it is built with.
+		desk:     A dict from each CRATE/FEATURE given with
+		          --desk-feature to the crates it may bring.
+		warnings: The list each warning is added to.
+
+	Returns:
+		The non-production crates those features may bring.
+	"""
+	allowed = set()
+	for given, brings in desk.items():
+		owner, _, feature = given.partition("/")
+		if owner == crate and feature in own:
+			allowed |= brings
+			warnings.append(
+				f"the {crate} built for installing has "
+				f"{feature}, a desk feature: a build with it "
+				"is never one to fly. Build the one that "
+				"flies without it, and with no installed "
+				"crate asking for it")
+	return allowed
+
+
+def python_packages(pyproject):
+	"""Lists the packages a pyproject.toml installs, and where they are.
+
+	Args:
+		pyproject: The pyproject.toml.
+
+	Returns:
+		(package, directory) for each package named in its
+		[tool.setuptools] packages, dotted names included.
+	"""
+	with open(pyproject, "rb") as f:
+		tool = tomllib.load(f).get("tool", {})
+	setuptools = tool.get("setuptools", {})
+	root = pyproject.parent / setuptools.get("package-dir", {}).get("", ".")
+	return [(package, root / package.replace(".", "/"))
+		for package in setuptools.get("packages", [])]
+
+
+def check_python(pyproject, problems):
+	"""Says what a production Python package imports that it should not.
+
+	Args:
+		pyproject: The pyproject.toml whose packages are checked.
+		problems:  The list each error is added to.
+	"""
+	for package, here in python_packages(pyproject):
+		if not is_production(package.split(".")[0]):
+			continue
+		for source in sorted(here.glob("*.py")):
+			if not source.exists():
+				problems.append(
+					f"{source}: a link to nothing, in "
+					f"{package}: point it at the file "
+					"it stands for")
+				continue
+			for name in IMPORT.findall(source.read_text()):
+				if is_tool(name):
+					problems.append(
+						f"{source}: imports {name}, "
+						"a non-production name, into "
+						f"{package}, production code")
+
+
+def judge(found, excepted, problems, warnings):
+	"""Turns what tools_in found into errors and warnings.
+
+	Args:
+		found:    A dict from each non-production name to the
+		          production crates built from it.
+		excepted: A dict from each name given with --except to why.
+		problems: The list each error is added to.
+		warnings: The list each warning is added to.
+	"""
+	for name, crates in found.items():
+		crates = ", ".join(dict.fromkeys(crates))
+		if name in excepted:
+			warnings.append(f"{name} is a non-production name and "
+					"production code is built from it "
+					f"({crates}): {excepted[name]}")
+		else:
+			problems.append(
+				f"{crates}, production code, built from "
+				f"{name}, a non-production name: take the "
+				f"dependency out, or give {name} a production "
+				"name if it runs on a vehicle or in the MOC")
+
+
+def self_test():
+	"""Holds the rule to the names in SELF_TEST.
+
+	Returns:
+		0 if each is judged as SELF_TEST says; 1 otherwise.
+	"""
+	wrong = [name for name, production in SELF_TEST.items()
+		 if is_production(name) != production
+		 or is_tool(name) != (production is False
+				      and prefix_of(name) is not None)]
+	for name in wrong:
+		print(f"production-names: --self-test: {name} judged wrongly",
+		      file=sys.stderr)
+	return 1 if wrong else 0
+
+
+def parse_arguments():
+	"""Reads the command line.
+
+	Returns:
+		The arguments, with desk and excepted as dicts.
+	"""
+	parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+	add = parser.add_argument
+	add("--manifest", action="append", default=[], type=Path,
+	    help="a Cargo.toml whose crates are checked")
+	add("--install", action="append", default=[],
+	    help="a crate built for installing, with the others")
+	add("--features", help="what the --install crates are built with")
+	add("--desk-feature", action="append", default=[],
+	    help="CRATE/FEATURE=CRATE,...: a desk feature, and the "
+		 "non-production crates it may bring")
+	add("--except", dest="excepted", action="append", default=[],
+	    help="NAME=WHY: a non-production name production code may "
+		 "still be built from")
+	add("--pyproject", action="append", default=[], type=Path,
+	    help="a pyproject.toml whose packages are checked")
+	add("--self-test", action="store_true",
+	    help="check the rule against names it must judge rightly")
+	args = parser.parse_args()
+	if not args.manifest and Path("Cargo.toml").exists():
+		args.manifest = [Path("Cargo.toml")]
+	args.desk = {}
+	for given in args.desk_feature:
+		feature, _, brings = given.partition("=")
+		args.desk[feature] = set(filter(None, brings.split(",")))
+	args.excepted = dict(given.partition("=")[::2]
+			     for given in args.excepted)
+	return args
+
+
+def main():
+	"""Runs every check, and says what it found.
+
+	Returns:
+		0 if nothing is wrong, warnings or not; 1 otherwise.
+	"""
+	args = parse_arguments()
+	if args.self_test:
+		return self_test()
+	problems, warnings, found, checked = [], [], {}, 0
+
+	for manifest in args.manifest:
+		crates = [c for c in crates_of(manifest) if is_production(c)]
+		checked += len(crates)
+		built = trees(manifest, crates, None) if crates else {}
+		for crate in crates:
+			tools_in(crate, built[crate], found)
+
+	installed = {}
+	if args.install:
+		installed = trees(args.manifest[0], args.install,
+				  args.features)
+	for crate in args.install:
+		if is_production(crate) and crate in installed:
+			own = installed[crate][0][1]
+			allowed = desk_features(crate, own, args.desk, warnings)
+			tools_in(crate, installed[crate], found, allowed)
+
+	judge(found, args.excepted, problems, warnings)
+	for pyproject in args.pyproject:
+		check_python(pyproject, problems)
+
+	for warning in warnings:
+		print(f"production-names: warning: {warning}", file=sys.stderr)
+	for problem in problems:
+		print(f"production-names: error: {problem}", file=sys.stderr)
+	if problems:
+		return 1
+	print(f"production-names: {checked} production crates and "
+	      f"{len(args.pyproject)} Python projects are built only from "
+	      "production code")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())

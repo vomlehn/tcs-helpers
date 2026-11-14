@@ -9,6 +9,27 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.9.0] - 2026-11-13
+
+### Added
+
+- `bin/production-names`, the one statement of the rule that TCS names
+  say whether code is production code -- a letter, or nothing, after
+  `tcs` or `tcslog` -- or not -- a hyphen or an underscore -- and the
+  check that a project's production crates, its installed build and its
+  production Python packages are built from and import only production
+  code. Each project runs it from `make production-names`, part of its
+  `make check`. `--desk-feature` makes a feature such as tcspecial's
+  visual window a warning, and `--except` a dependency not yet brought
+  into line. `--self-test` holds the rule to names it must judge rightly,
+  which `make check` here runs.
+
+### Changed
+
+- The pre-commit hook runs the project's `make production-names` before
+  rebuilding pages, when the commit changes a Cargo manifest or lock file,
+  a `pyproject.toml` or Python, and refuses the commit if it fails.
+
 ## [0.8.0] - 2026-11-11
 
 ### Added
