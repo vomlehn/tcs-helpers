@@ -53,8 +53,16 @@ check:
 		-e 's|@PROGRAMS@|example|g' packaging/links.sh.in \
 		| shellcheck -s sh -
 	@echo "shellcheck found nothing"
-	python3 -I bin/production-names --self-test
-	@echo "production-names judges every name it is tested with rightly"
+	python3 -I bin/operational-names --self-test
+	@echo "operational-names judges every name it is tested with rightly"
+	$(MAKE) --no-print-directory operational-names
+
+# Hold categories.toml to the files here, as every TCS project does: see
+# "Code categories" in README.md. There is no crate or Python package to
+# check the names of.
+.PHONY: operational-names
+operational-names:
+	python3 -I bin/operational-names
 
 .PHONY: uninstall
 uninstall:

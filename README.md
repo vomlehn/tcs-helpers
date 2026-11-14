@@ -110,7 +110,7 @@ it is built from, so that it can be read without building it. Two things
 keep those pages up to date, both from `bin/html-pages`:
 
 - The pre-commit hook, `githooks/pre-commit`, which also checks the names
-  first: see [Production names](#production-names). For each `.rst` or `.md`
+  first: see [Operational names](#operational-names). For each `.rst` or `.md`
   file a commit changes whose directory's Makefile has a rule for its
   page, it rebuilds the page and adds it to the commit. It refuses a
   commit whose staged source also has changes that are not staged, since
@@ -123,44 +123,88 @@ keep those pages up to date, both from `bin/html-pages`:
   The pages it found behind are already rebuilt, and need only
   committing.
 
-## Production names
+## Code categories
 
-TCS code is of two kinds. Production code is code a mission depends on
-while it operates: vehicle code, aboard the vehicle, and MOC code, in the
-mission operations centre. Everything else -- editors, simulators, test
-stations, generators, packaging -- is non-production code. A name says
-which: find the prefix, `tcslog` if the name starts with it and `tcs`
-otherwise. A letter after it, or nothing, is production (`tcspecial`,
-`tcsmoc`, `tcslog`, `tcslogc`, `tcsxtce`); a hyphen or an underscore is
-not (`tcs-gui`, `tcs-verify`, `tcs_xtce`, `tcslog-tools`). The rule covers
-published names, libraries, executables and header files, and not
-projects or the packages they install with. tcspecial's design,
-"Production code and its names", gives the requirements.
+TCS code is in six categories. This is the one statement of them, which
+every TCS project's documents, `categories.toml` and `make ntss` use:
 
-Production code is built only from production code, and
-`bin/production-names` holds a project to that. It is the one statement of
-the rule, and every project runs it from `make production-names`, which its
-`make check` runs:
+| Category | What it is | Such as |
+|---|---|---|
+| Operational code | Code a mission depends on while it operates: vehicle code, aboard the vehicle, and MOC code, in the mission operations centre | tcspecial, tcsmoc, tcsprotocol, tcslog, tcsxtce, tcsccsds |
+| Software tools | What makes or checks what operational code is built from or loads: generators, editors, checkers | the tcs-xtce compiler, tcs-gui, tcs-xtcee, tcs-verify, tcs-diagram, tcs-ui |
+| Verification tools | What is used only to test: stand-ins for the world and the MOC, test programs and fixtures | tcs-sim, tcs-moc, tcspecial's test apps, `tests/` |
+| Infrastructure | What builds, packages, documents and checks the code | tcs-helpers, `install-tools`, makefiles, CI, `make ntss` |
+| Analysis tools | What works on what a mission produced | tcslog-tools |
+| Examples | What is there to show how the rest is used | each project's `examples/` |
+
+The names follow DO-178C where they can: its "software tools" are every
+tool, verification tools among them, but here software tools are the
+others. Software tools take the most care of all but operational code,
+since a mistake in what they make or pass reaches a vehicle with no fault
+in the operational code.
+
+Each project says which category each of its directories is in, in a
+`categories.toml` at its top, with a key of its `[categories]` table for
+each category it has:
+
+```toml
+[categories]
+operational = ["tcspecial", "tcsprotocol", "python/tcsmoc"]
+software-tools = ["tcs-gui", "python/tcs_ui"]
+verification-tools = ["tcs-sim", "tests"]
+infrastructure = ["packaging", "bin", "docs"]
+examples = ["examples"]
+```
+
+A directory stands for everything under it but what a deeper path covers; a
+path can name a file, or hold a `*` to stand for several, as
+`cpp/include/tcsxtce-*` does where one directory holds headers of two
+categories. A file at the top, in no directory, is infrastructure.
+`bin/operational-names` holds the file to the project, as below.
+
+## Operational names
+
+A name says whether code is operational: find the prefix, `tcslog` if
+the name starts with it and `tcs` otherwise. A letter after it, or
+nothing, is operational (`tcspecial`, `tcsmoc`, `tcslog`, `tcslogc`,
+`tcsxtce`); a hyphen or an underscore is not (`tcs-gui`, `tcs-verify`,
+`tcs_xtce`, `tcslog-tools`). The rule covers published names, libraries,
+executables and header files, and not projects or the packages they
+install with. tcspecial's design, "Operational code and its names", gives
+the requirements.
+
+Operational code is built only from operational code, and
+`bin/operational-names` holds a project to that. It is the one statement
+of the rule, and every project runs it from `make operational-names`,
+which its `make check` runs:
 
 ```sh
-$(TCS_HELPERS)/bin/production-names \
+$(TCS_HELPERS)/bin/operational-names \
 	--pyproject python/pyproject.toml \
 	--install tcspecial --install tcs-moc \
 	--desk-feature tcspecial/visual=tcs-diagram \
 	--except 'tcs-xtce=why, until it can go'
 ```
 
-It fails where a production crate of the project's Cargo manifests
+It fails where an operational crate of the project's Cargo manifests
 (`--manifest`, or `./Cargo.toml`) is built from a crate with a
-non-production name, or where a production Python package of a
+non-operational name, or where an operational Python package of a
 `--pyproject` imports one. `--install` names the crates a project builds
 together for installing, which cargo builds with their features pooled;
 they are checked as so built, and a `--desk-feature` found on in that
 build -- tcspecial's visual window, which never flies -- is a warning, as is
-each name given with `--except`, every run, until it is gone. The
-pre-commit hook runs `make production-names` too, when a commit changes a
-Cargo manifest or lock file, a `pyproject.toml` or Python, so that a
-dependency on a tool is refused when it is committed.
+each name given with `--except`, every run, until it is gone.
+
+It holds the project's `categories.toml` (`--categories`, or
+`./categories.toml`) to the project too. It fails where a file git tracks
+is in a directory no path covers, where a path covers nothing git
+tracks, and where a crate or Python package has an operational name and is not in an
+operational directory, or is in one and has another name.
+
+The pre-commit hook runs `make operational-names` too, when a commit
+changes a Cargo manifest or lock file, a `pyproject.toml`, Python or
+`categories.toml`, or adds a file, so that a dependency on a tool, or a
+directory in no category, is refused when it is committed.
 
 ## Third-party notices
 
@@ -330,7 +374,7 @@ together once `make hooks` has been run here.
 
 ## Checking
 
-`make check` runs `bin/production-names --self-test`, which holds the rule
+`make check` runs `bin/operational-names --self-test`, which holds the rule
 to names it must judge rightly, compiles `third-party-notices.py`, runs
 shellcheck on every
 script, `links.sh.in` with its

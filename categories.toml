@@ -1,0 +1,6 @@
+# What each directory of tcs-helpers is, by the TCS code categories: see
+# "Code categories" in README.md. bin/operational-names holds it to the
+# files git tracks.
+
+[categories]
+infrastructure = ["bin", "githooks", "packaging"]

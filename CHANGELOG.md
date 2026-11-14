@@ -9,6 +9,27 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.10.0] - 2026-11-14
+
+### Changed
+
+- Production code is called operational code, and the rest is in five
+  categories: software tools, verification tools, infrastructure,
+  analysis tools and examples. README.md's "Code categories" defines all
+  six. `bin/production-names` is `bin/operational-names`, and a project's
+  `make production-names` is `make operational-names`; the naming rule
+  is unchanged.
+
+### Added
+
+- `categories.toml`, at the top of every TCS project, puts each of its
+  directories, or files, in a category. `operational-names` holds it to
+  the project: every file git tracks in a directory is in a category,
+  every path covers something, and the crates and Python packages in
+  operational paths, and only they, have operational names. The
+  pre-commit hook runs it when a commit changes `categories.toml` or adds
+  a file too.
+
 ## [0.9.0] - 2026-11-13
 
 ### Added

@@ -1,0 +1,593 @@
+#!/usr/bin/env python3
+"""operational-names: holds a TCS project's names, and the categories its
+code is in, to what they say.
+
+TCS code is in six categories, which README.md's "Code categories"
+defines: operational code, which a mission depends on while it operates,
+aboard the vehicle or in the mission operations centre; software tools,
+which make or check what operational code is built from or loads;
+verification tools, used only to test; infrastructure, which builds,
+packages and checks; analysis tools, which work on what a mission
+produced; and examples. A TCS name says whether code is operational:
+find the prefix, `tcslog` if the name starts with it and `tcs` otherwise,
+and look at what follows. A letter, or nothing, is operational
+(tcspecial, tcsmoc, tcsprotocol, tcslog, tcslogc, tcsxtce); a hyphen or an
+underscore is not (tcs-gui, tcs-verify, tcs_xtce, tcslog-tools). A name
+that does not start with `tcs` is not TCS's, and nothing is said of it.
+This is the one statement of that rule: every TCS project checks itself
+with it. tcspecial's design, "Operational code and its names", gives the
+requirements.
+
+Operational code is built only from operational code. What is checked:
+
+  * every operational crate of each Cargo manifest given, by its normal
+    dependencies: none may have a non-operational name;
+  * the crates given with --install, as one cargo run builds them, their
+    features pooled: likewise. A feature given with --desk-feature that is
+    on in that build is a warning, not an error, and so are the
+    non-operational crates it is allowed to bring: it is for a build on a
+    desk, never one to fly;
+  * every operational Python package each pyproject.toml given installs:
+    it imports nothing with a non-operational name;
+  * the project's categories.toml, which puts each of its directories in
+    a category: every file git tracks in a directory is in one, and the
+    crates and Python packages in operational directories, and only they,
+    have operational names.
+
+A name given with --except is warned of on every run, with why, rather
+than refused, until it can go.
+
+usage: operational-names [--manifest CARGO_TOML]... [--install CRATE]...
+                        [--features FEATURES]
+                        [--desk-feature CRATE/FEATURE=CRATE[,CRATE...]]...
+                        [--except NAME=WHY]... [--pyproject PYPROJECT]...
+                        [--categories CATEGORIES_TOML]
+       operational-names --self-test
+
+With no --manifest, the Cargo.toml in the current directory, if there is
+one; with no --categories, the categories.toml there, which every TCS
+project has. Exits 0 if nothing is wrong, warnings or not, and 1 otherwise.
+"""
+
+import argparse
+import fnmatch
+import json
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+#: One line of `cargo tree --prefix depth --format '{p}|{f}'`: the depth,
+#: the crate's name, and its features.
+TREE_LINE = re.compile(r"^(\d+)(\S+) v\S+.*?\|(.*)$")
+
+#: An import in Python, by the name of the top package imported.
+IMPORT = re.compile(r"^\s*(?:from|import)\s+([A-Za-z_]\w*)", re.M)
+
+#: The categories of TCS code, in the order they are reported, each with
+#: the heading it is reported under: see README.md, "Code categories".
+CATEGORIES = {
+	"operational": "Operational code",
+	"software-tools": "Software tools",
+	"verification-tools": "Verification tools",
+	"infrastructure": "Infrastructure",
+	"analysis-tools": "Analysis tools",
+	"examples": "Examples",
+}
+
+#: The category of a file at the top of a project, in no directory: its
+#: makefile, manifests, README and licences.
+TOP_CATEGORY = "infrastructure"
+
+#: Names and whether each is operational code's, for --self-test.
+SELF_TEST = {
+	"tcspecial": True, "tcsmoc": True, "tcsmoc-c": True,
+	"tcsprotocol": True, "tcslog": True, "tcslogc": True,
+	"tcsxtce": True, "tcs-gui": False, "tcs-verify": False,
+	"tcs_xtce": False, "tcslog-tools": False, "tcslog_tools": False,
+	"tcs-diagram": False, "serde": False, "slint": False,
+}
+
+
+def prefix_of(name):
+	"""Gives the TCS prefix a name starts with.
+
+	Args:
+		name: A crate's, a library's or a package's name.
+
+	Returns:
+		`tcslog` or `tcs`, the longer one where both fit; or None
+		for a name that is not TCS's.
+	"""
+	for prefix in ("tcslog", "tcs"):
+		if name.startswith(prefix):
+			return prefix
+	return None
+
+
+def is_operational(name):
+	"""Says whether a name is operational code's.
+
+	Args:
+		name: Any crate's, library's or package's name.
+
+	Returns:
+		True for a TCS name with a letter, or nothing, after its
+		prefix.
+	"""
+	prefix = prefix_of(name)
+	if prefix is None:
+		return False
+	rest = name[len(prefix):]
+	return rest == "" or rest[0].isalpha()
+
+
+def is_tool(name):
+	"""Says whether a name is non-operational code's.
+
+	Args:
+		name: Any crate's, library's or package's name.
+
+	Returns:
+		True for a TCS name with a hyphen or an underscore after its
+		prefix.
+	"""
+	return prefix_of(name) is not None and not is_operational(name)
+
+
+def run(command):
+	"""Runs a command and gives what it printed.
+
+	Args:
+		command: The command and its arguments.
+
+	Returns:
+		Its standard output.
+	"""
+	return subprocess.run(command, check=True, capture_output=True,
+			      text=True).stdout
+
+
+def crates_of(manifest):
+	"""Lists the crates a Cargo manifest builds.
+
+	Args:
+		manifest: The Cargo.toml: a workspace's or one crate's.
+
+	Returns:
+		The name of each crate of the workspace, or of the one crate.
+	"""
+	return list(crate_dirs(manifest))
+
+
+def crate_dirs(manifest):
+	"""Says where each crate a Cargo manifest builds is.
+
+	Args:
+		manifest: The Cargo.toml: a workspace's or one crate's.
+
+	Returns:
+		A dict from each crate's name to its directory.
+	"""
+	out = run(["cargo", "metadata", "--no-deps", "--offline",
+		   "--format-version", "1", "--manifest-path", str(manifest)])
+	return {package["name"]: Path(package["manifest_path"]).parent
+		for package in json.loads(out)["packages"]}
+
+
+def read_categories(path):
+	"""Reads a project's categories.toml.
+
+	Each key of its [categories] table is a category, and its value
+	the paths, relative to the project's top, of the directories and
+	files in that category: a directory stands for everything under it
+	but what a path deeper in covers, and a path may hold a * or a ?
+	to stand for several, as cpp/include/tcsxtce-* does.
+
+	Args:
+		path: The categories.toml.
+
+	Returns:
+		(path, category) for each path.
+
+	Raises:
+		ValueError: A category is not one of CATEGORIES, or a path
+		            is listed twice, absolute or leaves the project.
+	"""
+	with open(path, "rb") as f:
+		table = tomllib.load(f).get("categories", {})
+	found, seen = [], set()
+	for category, paths in table.items():
+		if category not in CATEGORIES:
+			raise ValueError(f"{path}: {category} is not a "
+					 "category: " + ", ".join(CATEGORIES))
+		for given in paths:
+			directory = Path(given)
+			if (directory.is_absolute() or ".." in directory.parts
+			    or str(directory) == "."):
+				raise ValueError(f"{path}: {given} is not a "
+						 "directory of the project")
+			if directory in seen:
+				raise ValueError(f"{path}: {given} is listed "
+						 "twice")
+			seen.add(directory)
+			found.append((directory, category))
+	return found
+
+
+def covers(path, relative):
+	"""Says how closely a path of categories.toml covers a file.
+
+	Args:
+		path:     The path, which may hold * or ?.
+		relative: The file's path, relative to the project's top.
+
+	Returns:
+		How many parts the file's path, or the directory over it,
+		that the path names has -- the more, the closer -- or 0
+		where the path covers the file not at all.
+	"""
+	glob = any(c in str(path) for c in "*?[")
+	for p in (relative, *relative.parents):
+		if (fnmatch.fnmatchcase(str(p), str(path)) if glob
+		    else p == path):
+			return len(p.parts)
+	return 0
+
+
+def category_of(relative, table):
+	"""Says which category a file of a project is in.
+
+	Args:
+		relative: The file's path, relative to the project's top.
+		table:    What read_categories gave.
+
+	Returns:
+		Its category: that of the path listed that covers it most
+		closely, TOP_CATEGORY for a file at the top, or None for a
+		file in a directory none of the paths covers.
+	"""
+	best, found = 0, None
+	for path, category in table:
+		depth = covers(path, relative)
+		if depth > best:
+			best, found = depth, category
+	if found is not None:
+		return found
+	if len(relative.parts) == 1:
+		return TOP_CATEGORY
+	return None
+
+
+def tracked_files(top):
+	"""Lists the files git tracks in a project.
+
+	Args:
+		top: The project's top directory.
+
+	Returns:
+		Their paths, relative to top, or an empty list where top is
+		not a git checkout.
+	"""
+	try:
+		out = subprocess.run(["git", "-C", str(top), "ls-files", "-z"],
+				     check=True, capture_output=True).stdout
+	except (OSError, subprocess.CalledProcessError):
+		return []
+	return [Path(f) for f in out.decode("utf-8", "replace").split("\0")
+		if f]
+
+
+def check_categories(path, named, problems):
+	"""Holds a project's categories.toml to its files and its names.
+
+	Args:
+		path:     The categories.toml, at the project's top.
+		named:    A dict from each crate's and Python package's name
+		          to its directory.
+		problems: The list each error is added to.
+
+	Returns:
+		How many paths it lists.
+	"""
+	top = path.resolve().parent
+	try:
+		table = read_categories(path)
+	except (OSError, ValueError, tomllib.TOMLDecodeError) as e:
+		problems.append(str(e))
+		return 0
+	files = tracked_files(top)
+	for listed, _ in table:
+		if files and not any(covers(listed, f) for f in files):
+			problems.append(f"{path}: {listed} is no file or "
+					"directory git tracks")
+	loose = sorted({f.parts[0] for f in files
+			if category_of(f, table) is None})
+	for directory in loose:
+		problems.append(f"{path}: {directory}/ is in no category: "
+				"list it, or each directory under it")
+	for name, where in sorted(named.items()):
+		try:
+			relative = where.resolve().relative_to(top)
+		except ValueError:
+			continue
+		category = category_of(relative / "x", table)
+		if is_operational(name) and category != "operational":
+			problems.append(
+				f"{name} has an operational name, but "
+				f"{path} puts {relative} in {category}: "
+				"list it under operational, or rename it")
+		elif category == "operational" and not is_operational(name):
+			problems.append(
+				f"{path} puts {relative} in operational "
+				f"code, but {name} does not have an "
+				"operational name: rename it, or list it in "
+				"another category")
+	return len(table)
+
+
+def trees(manifest, crates, features):
+	"""Gives the normal-dependency trees of crates built in one run.
+
+	Args:
+		manifest: The Cargo.toml the crates are in.
+		crates:   The crates, given to cargo together, as a build of
+		          them all would be, so that their features are
+		          pooled.
+		features: Features to build with, as cargo's --features
+		          takes them, or None.
+
+	Returns:
+		A dict from each of crates to a list of (name, features)
+		for it and every crate it is built from, its own first.
+	"""
+	command = ["cargo", "tree", "--offline", "--no-dedupe",
+		   "-e", "normal", "--prefix", "depth",
+		   "--format", "{p}|{f}", "--manifest-path", str(manifest)]
+	for crate in crates:
+		command += ["-p", crate]
+	if features:
+		command += ["--features", features]
+	found, root = {}, None
+	for line in run(command).splitlines():
+		m = TREE_LINE.match(line)
+		if not m:
+			continue
+		if m.group(1) == "0":
+			root = m.group(2)
+			found.setdefault(root, [])
+		if root is not None:
+			feats = set(filter(None, m.group(3).split(",")))
+			found[root].append((m.group(2), feats))
+	return found
+
+
+def tools_in(crate, built_from, found, allowed=()):
+	"""Notes each non-operational crate an operational crate is built from.
+
+	Args:
+		crate:      The crate.
+		built_from: (name, features) for it and every crate it is
+		            built from, as trees gives them.
+		found:      A dict from each non-operational name found to
+		            the crates built from it, which this adds to.
+		allowed:    Names to pass over, as a desk feature brings
+		            them.
+	"""
+	for name in sorted({name for name, _ in built_from[1:]}):
+		if is_tool(name) and name not in allowed:
+			found.setdefault(name, []).append(crate)
+
+
+def desk_features(crate, own, desk, warnings):
+	"""Says which desk features an installed crate is built with.
+
+	Args:
+		crate:    The installed crate.
+		own:      The features it is built with.
+		desk:     A dict from each CRATE/FEATURE given with
+		          --desk-feature to the crates it may bring.
+		warnings: The list each warning is added to.
+
+	Returns:
+		The non-operational crates those features may bring.
+	"""
+	allowed = set()
+	for given, brings in desk.items():
+		owner, _, feature = given.partition("/")
+		if owner == crate and feature in own:
+			allowed |= brings
+			warnings.append(
+				f"the {crate} built for installing has "
+				f"{feature}, a desk feature: a build with it "
+				"is never one to fly. Build the one that "
+				"flies without it, and with no installed "
+				"crate asking for it")
+	return allowed
+
+
+def python_packages(pyproject):
+	"""Lists the packages a pyproject.toml installs, and where they are.
+
+	Args:
+		pyproject: The pyproject.toml.
+
+	Returns:
+		(package, directory) for each package named in its
+		[tool.setuptools] packages, dotted names included.
+	"""
+	with open(pyproject, "rb") as f:
+		tool = tomllib.load(f).get("tool", {})
+	setuptools = tool.get("setuptools", {})
+	root = pyproject.parent / setuptools.get("package-dir", {}).get("", ".")
+	return [(package, root / package.replace(".", "/"))
+		for package in setuptools.get("packages", [])]
+
+
+def check_python(pyproject, problems):
+	"""Says what an operational Python package imports that it should not.
+
+	Args:
+		pyproject: The pyproject.toml whose packages are checked.
+		problems:  The list each error is added to.
+	"""
+	for package, here in python_packages(pyproject):
+		if not is_operational(package.split(".")[0]):
+			continue
+		for source in sorted(here.glob("*.py")):
+			if not source.exists():
+				problems.append(
+					f"{source}: a link to nothing, in "
+					f"{package}: point it at the file "
+					"it stands for")
+				continue
+			for name in IMPORT.findall(source.read_text()):
+				if is_tool(name):
+					problems.append(
+						f"{source}: imports {name}, "
+						"a non-operational name, into "
+						f"{package}, operational code")
+
+
+def judge(found, excepted, problems, warnings):
+	"""Turns what tools_in found into errors and warnings.
+
+	Args:
+		found:    A dict from each non-operational name to the
+		          operational crates built from it.
+		excepted: A dict from each name given with --except to why.
+		problems: The list each error is added to.
+		warnings: The list each warning is added to.
+	"""
+	for name, crates in found.items():
+		crates = ", ".join(dict.fromkeys(crates))
+		if name in excepted:
+			warnings.append(f"{name} is a non-operational name and "
+					"operational code is built from it "
+					f"({crates}): {excepted[name]}")
+		else:
+			problems.append(
+				f"{crates}, operational code, built from "
+				f"{name}, a non-operational name: take the "
+				f"dependency out, or give {name} an "
+				"operational name if it runs on a vehicle or "
+				"in the MOC")
+
+
+def self_test():
+	"""Holds the rule to the names in SELF_TEST.
+
+	Returns:
+		0 if each is judged as SELF_TEST says; 1 otherwise.
+	"""
+	wrong = [name for name, operational in SELF_TEST.items()
+		 if is_operational(name) != operational
+		 or is_tool(name) != (operational is False
+				      and prefix_of(name) is not None)]
+	for name in wrong:
+		print(f"operational-names: --self-test: {name} judged wrongly",
+		      file=sys.stderr)
+	return 1 if wrong else 0
+
+
+def parse_arguments():
+	"""Reads the command line.
+
+	Returns:
+		The arguments, with desk and excepted as dicts.
+	"""
+	parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+	add = parser.add_argument
+	add("--manifest", action="append", default=[], type=Path,
+	    help="a Cargo.toml whose crates are checked")
+	add("--install", action="append", default=[],
+	    help="a crate built for installing, with the others")
+	add("--features", help="what the --install crates are built with")
+	add("--desk-feature", action="append", default=[],
+	    help="CRATE/FEATURE=CRATE,...: a desk feature, and the "
+		 "non-operational crates it may bring")
+	add("--except", dest="excepted", action="append", default=[],
+	    help="NAME=WHY: a non-operational name operational code may "
+		 "still be built from")
+	add("--pyproject", action="append", default=[], type=Path,
+	    help="a pyproject.toml whose packages are checked")
+	add("--categories", type=Path,
+	    help="the project's categories.toml (default: the one in "
+		 "the current directory)")
+	add("--self-test", action="store_true",
+	    help="check the rule against names it must judge rightly")
+	args = parser.parse_args()
+	if not args.manifest and Path("Cargo.toml").exists():
+		args.manifest = [Path("Cargo.toml")]
+	if args.categories is None:
+		args.categories = Path("categories.toml")
+	args.desk = {}
+	for given in args.desk_feature:
+		feature, _, brings = given.partition("=")
+		args.desk[feature] = set(filter(None, brings.split(",")))
+	args.excepted = dict(given.partition("=")[::2]
+			     for given in args.excepted)
+	return args
+
+
+def main():
+	"""Runs every check, and says what it found.
+
+	Returns:
+		0 if nothing is wrong, warnings or not; 1 otherwise.
+	"""
+	args = parse_arguments()
+	if args.self_test:
+		return self_test()
+	problems, warnings, found, checked = [], [], {}, 0
+	named = {}
+
+	for manifest in args.manifest:
+		dirs = crate_dirs(manifest)
+		named.update(dirs)
+		crates = [c for c in dirs if is_operational(c)]
+		checked += len(crates)
+		built = trees(manifest, crates, None) if crates else {}
+		for crate in crates:
+			tools_in(crate, built[crate], found)
+
+	installed = {}
+	if args.install:
+		installed = trees(args.manifest[0], args.install,
+				  args.features)
+	for crate in args.install:
+		if is_operational(crate) and crate in installed:
+			own = installed[crate][0][1]
+			allowed = desk_features(crate, own, args.desk, warnings)
+			tools_in(crate, installed[crate], found, allowed)
+
+	judge(found, args.excepted, problems, warnings)
+	for pyproject in args.pyproject:
+		check_python(pyproject, problems)
+		for package, here in python_packages(pyproject):
+			if "." not in package:
+				named[package] = here
+	if args.categories.is_file():
+		paths = check_categories(args.categories, named, problems)
+	else:
+		paths = 0
+		problems.append(f"no {args.categories}: every TCS project "
+				"puts its directories in categories there; "
+				"see tcs-helpers' README, \"Code categories\"")
+
+	for warning in warnings:
+		print(f"operational-names: warning: {warning}", file=sys.stderr)
+	for problem in problems:
+		print(f"operational-names: error: {problem}", file=sys.stderr)
+	if problems:
+		return 1
+	print(f"operational-names: {checked} operational crates and "
+	      f"{len(args.pyproject)} Python projects are built only from "
+	      f"operational code, and {args.categories} puts every "
+	      f"directory in a category, by {paths} paths")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
