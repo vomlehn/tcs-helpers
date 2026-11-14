@@ -27,7 +27,11 @@ not means the build was not run first.
 
 The Rust standard library is compiled into every program too, and its
 notices are those the toolchain ships for it, COPYRIGHT-library.html in
-its documentation, which is added as text after the crates.
+its documentation, which is added as text after the crates. Each licence
+or notice file that page quotes, for each crate the library is built from,
+is numbered with the crates' own texts and printed once, the page saying
+"Text [n]" in its place: the page quotes the same texts many times over,
+and most of them are the crates' too.
 
 A crate that ships no licence file gets the standard text of the licence
 it is taken under, from packaging/licences or this checkout's
@@ -267,18 +271,34 @@ def standard(identifier, crate):
 
 class _Text(html.parser.HTMLParser):
 	"""Takes the text of an HTML page, without its head, styles and
-	scripts.
+	scripts, and with each file a <details> element quotes -- its name in
+	the <summary>, its text in a <pre> -- numbered among the texts and
+	named in its place.
 
 	Attributes:
-	    parts: The page's text, in pieces, as met.
-	    skip:  How many elements whose text is not shown are open.
+	    parts:   The page's text, in pieces, as met.
+	    skip:    How many elements whose text is not shown are open.
+	    texts:   The texts the quoted files are numbered among.
+	    details: Whether a <details> element is open.
+	    name:    The pieces of the quoted file's name, from its
+	             <summary>, or None outside one.
+	    quoted:  The pieces of the quoted file's text, from its <pre>,
+	             or None outside one.
 	"""
 
-	def __init__(self):
-		"""Starts with no text."""
+	def __init__(self, texts):
+		"""Starts with no text.
+
+		Args:
+		    texts: The texts the quoted files are numbered among.
+		"""
 		super().__init__()
 		self.parts = []
 		self.skip = 0
+		self.texts = texts
+		self.details = False
+		self.name = None
+		self.quoted = None
 
 	def handle_starttag(self, tag, attrs):
 		"""Notes an element whose text is not shown opening.
@@ -289,6 +309,11 @@ class _Text(html.parser.HTMLParser):
 		"""
 		if tag in ("head", "style", "script"):
 			self.skip += 1
+		elif tag == "details":
+			self.details = True
+			self.name = []
+		elif tag == "pre" and self.details:
+			self.quoted = []
 
 	def handle_endtag(self, tag):
 		"""Notes an element whose text is not shown closing.
@@ -298,22 +323,42 @@ class _Text(html.parser.HTMLParser):
 		"""
 		if tag in ("head", "style", "script"):
 			self.skip -= 1
+		elif tag == "pre" and self.quoted is not None:
+			text = "".join(self.quoted).lstrip("\n").rstrip()
+			name = "".join(self.name or []).strip()
+			n = self.texts.number(text)
+			self.parts.append(f"Text [{n}]: {name}\n")
+			self.quoted = None
+		elif tag == "details":
+			self.details = False
+			self.name = None
 
 	def handle_data(self, data):
-		"""Keeps text that is shown.
+		"""Keeps text that is shown, a quoted file's apart.
 
 		Args:
 		    data: The text.
 		"""
-		if not self.skip:
+		if self.skip:
+			return
+		if self.quoted is not None:
+			self.quoted.append(data)
+		elif self.details and self.name is not None:
+			self.name.append(data)
+		else:
 			self.parts.append(data)
 
 
-def standard_library():
+def standard_library(texts):
 	"""Gives the notices of the Rust standard library being compiled in.
 
+	Args:
+	    texts: The texts the files the notices quote are numbered among.
+
 	Returns:
-	    Their text, from the toolchain's COPYRIGHT-library.html.
+	    Their text, from the toolchain's COPYRIGHT-library.html, with
+	    each quoted file's text numbered among the texts and named in
+	    its place.
 	"""
 	sysroot = subprocess.run(["rustc", "--print", "sysroot"],
 				 capture_output=True, text=True,
@@ -323,7 +368,7 @@ def standard_library():
 		fail(f"{page}, the Rust standard library's notices, is "
 		     f"missing: use a toolchain installed by rustup, which "
 		     f"ships it")
-	parser = _Text()
+	parser = _Text(texts)
 	parser.feed(read(page))
 	return re.sub(r"\n\s*\n+", "\n\n", "".join(parser.parts)).strip()
 
@@ -435,7 +480,7 @@ def main(argv):
 
 	rustc = subprocess.run(["rustc", "-V"], capture_output=True,
 			       text=True, check=True).stdout.split()[1]
-	n = texts.number(standard_library())
+	n = texts.number(standard_library(texts))
 	entries.append(f"== The Rust standard library {rustc}\n"
 		       f"Licence:  Apache-2.0 OR MIT, and the licences its "
 		       f"notices give\nTaken under: MIT\n"

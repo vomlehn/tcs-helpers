@@ -17,7 +17,9 @@
 #
 # In <package>/DEBIAN/control, @VERSION@, @ARCH@, @SIZE@ and @SHLIBS@ are
 # replaced by the version, the architecture, the installed size in KiB and
-# the packages holding the shared libraries the package links with. The
+# the packages holding the shared libraries the package links with. A
+# package with no programs or libraries, of headers and scripts alone, has
+# no @SHLIBS@ in its control file. The
 # maintainer scripts there, preinst, postinst, prerm and postrm, are copied
 # as they are.
 #
@@ -67,23 +69,31 @@ elves=$(find "$root" -path "$root/DEBIAN" -prune -o -type f -print |
 			echo "$file"
 		fi
 	done)
+# A package whose control file names no @SHLIBS@, such as one of headers
+# and Python alone, has nothing to link with and needs none; one that names
+# it and has no programs or libraries was not staged.
+depends=
 if [ -z "$elves" ]; then
-	echo "build-deb.sh: $package has no programs or libraries in it:" \
-	     "run make stage first" >&2
-	exit 1
-fi
-shlibs=$work/shlibdeps-$package
-rm -rf "$shlibs"
-mkdir -p "$shlibs/debian"
-printf 'Source: %s\n\nPackage: %s\nArchitecture: any\n' "$source" \
-	"$package" > "$shlibs/debian/control"
-# shellcheck disable=SC2086 # One ELF file per word.
-depends=$(cd "$shlibs" && dpkg-shlibdeps -O -l"$root/opt/tcs/lib" $elves |
-	sed -n 's/^shlibs:Depends=//p')
-if [ -z "$depends" ]; then
-	echo "build-deb.sh: dpkg-shlibdeps found no dependencies for" \
-	     "$package, which links with libc at least" >&2
-	exit 1
+	if grep -q '@SHLIBS@' "$template/control"; then
+		echo "build-deb.sh: $package has no programs or libraries" \
+		     "in it: run make stage first" >&2
+		exit 1
+	fi
+else
+	shlibs=$work/shlibdeps-$package
+	rm -rf "$shlibs"
+	mkdir -p "$shlibs/debian"
+	printf 'Source: %s\n\nPackage: %s\nArchitecture: any\n' \
+		"$source" "$package" > "$shlibs/debian/control"
+	# shellcheck disable=SC2086 # One ELF file per word.
+	depends=$(cd "$shlibs" &&
+		dpkg-shlibdeps -O -l"$root/opt/tcs/lib" $elves |
+		sed -n 's/^shlibs:Depends=//p')
+	if [ -z "$depends" ]; then
+		echo "build-deb.sh: dpkg-shlibdeps found no dependencies for" \
+		     "$package, which links with libc at least" >&2
+		exit 1
+	fi
 fi
 
 size=$(du -sk --exclude=DEBIAN "$root" | cut -f1)

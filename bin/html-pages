@@ -87,10 +87,15 @@ stage() {
 #   0 when none was behind, 1 otherwise.
 check() {
 	sums=$(mktemp)
-	# shellcheck disable=SC2046 # each file a word
-	md5sum $(for dir in "$@"; do
+	pages=$(for dir in "$@"; do
 		git ls-files "$dir/*.html" "$dir/*.svg"
-	done) > "$sums"
+	done)
+	# No page git tracks yet is nothing to compare, and md5sum given no
+	# file would read its standard input instead.
+	if [ -n "$pages" ]; then
+		# shellcheck disable=SC2086 # each file a word
+		md5sum $pages > "$sums"
+	fi
 	for dir in "$@"; do
 		# A directory whose default target builds more than its pages,
 		# such as an example's programs, has an html target for them.

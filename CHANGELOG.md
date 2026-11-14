@@ -9,6 +9,30 @@ needs, which `tcs-helpers --require` checks.
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
 
+## [0.11.0] - 2026-11-14
+
+### Changed
+
+- `third-party-notices.py` prints each licence and notice file the Rust
+  standard library's notices quote once, numbered with the crates' own
+  texts, where it printed the notices as the toolchain wrote them: the
+  same few texts were quoted over two hundred times. A package's
+  `THIRD-PARTY-NOTICES` goes from about 1.5 MB to about 250 KB, every
+  distinct text still in it.
+
+### Added
+
+- `packaging/build-deb.sh` builds a package with no programs or libraries
+  in it, such as one of headers and Python alone, when its control file
+  names no `@SHLIBS@`; one that names it and has none was not staged, and
+  is still refused.
+
+### Fixed
+
+- `html-pages check` in a directory with no page git tracks yet waited for
+  ever, md5sum given no file reading its standard input; it now has
+  nothing to compare.
+
 ## [0.10.0] - 2026-11-14
 
 ### Changed

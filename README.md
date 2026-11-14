@@ -233,6 +233,14 @@ ships, their texts following the list, each printed once. A crate that
 ships none gets the standard text of its licence from `packaging/licences`
 or `LICENSE-APACHE`, with its authors as the copyright holders.
 
+The standard library's notices, the toolchain's `COPYRIGHT-library.html`,
+quote the licence and notice files of every crate the library is built
+from: over two hundred and fifty, most of them the same few texts. Each
+is numbered with the crates' own texts, so that it too is printed once,
+and the notices say `Text [n]` where they quoted it. That takes a
+package's `THIRD-PARTY-NOTICES` from about 1.5 MB to about 250 KB, every
+text still in it.
+
 Slint is offered under GPL-3.0, its royalty-free licence for desktop
 applications and a commercial one; the projects take the royalty-free
 one, which they meet with Slint's attribution badge in their READMEs.
