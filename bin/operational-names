@@ -12,7 +12,7 @@ produced; and examples. A TCS name says whether code is operational:
 find the prefix, `tcslog` if the name starts with it and `tcs` otherwise,
 and look at what follows. A letter, or nothing, is operational
 (tcspecial, tcsmoc, tcsprotocol, tcslog, tcslogc, tcsxtce); a hyphen or an
-underscore is not (tcs-gui, tcs-verify, tcs_xtce, tcslog-tools). A name
+underscore is not (tcs-cfge, tcs-verify, tcs_xtce, tcslog-tools). A name
 that does not start with `tcs` is not TCS's, and nothing is said of it.
 This is the one statement of that rule: every TCS project checks itself
 with it. tcspecial's design, "Operational code and its names", gives the
@@ -84,7 +84,7 @@ TOP_CATEGORY = "infrastructure"
 SELF_TEST = {
 	"tcspecial": True, "tcsmoc": True, "tcsmoc-c": True,
 	"tcsprotocol": True, "tcslog": True, "tcslogc": True,
-	"tcsxtce": True, "tcs-gui": False, "tcs-verify": False,
+	"tcsxtce": True, "tcs-cfge": False, "tcs-verify": False,
 	"tcs_xtce": False, "tcslog-tools": False, "tcslog_tools": False,
 	"tcs-diagram": False, "serde": False, "slint": False,
 }

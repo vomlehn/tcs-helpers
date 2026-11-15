@@ -131,7 +131,7 @@ every TCS project's documents, `categories.toml` and `make ntss` use:
 | Category | What it is | Such as |
 |---|---|---|
 | Operational code | Code a mission depends on while it operates: vehicle code, aboard the vehicle, and MOC code, in the mission operations centre | tcspecial, tcsmoc, tcsprotocol, tcslog, tcsxtce, tcsccsds |
-| Software tools | What makes or checks what operational code is built from or loads: generators, editors, checkers | the tcs-xtce compiler, tcs-gui, tcs-xtcee, tcs-verify, tcs-diagram, tcs-ui |
+| Software tools | What makes or checks what operational code is built from or loads: generators, editors, checkers | the tcs-xtce compiler, tcs-cfge, tcs-xtcee, tcs-verify, tcs-diagram, tcs-ui |
 | Verification tools | What is used only to test: stand-ins for the world and the MOC, test programs and fixtures | tcs-sim, tcs-moc, tcspecial's test apps, `tests/` |
 | Infrastructure | What builds, packages, documents and checks the code | tcs-helpers, `install-tools`, makefiles, CI, `make ntss` |
 | Analysis tools | What works on what a mission produced | tcslog-tools |
@@ -150,7 +150,7 @@ each category it has:
 ```toml
 [categories]
 operational = ["tcspecial", "tcsprotocol", "python/tcsmoc"]
-software-tools = ["tcs-gui", "python/tcs_ui"]
+software-tools = ["tcs-cfge", "python/tcs_ui"]
 verification-tools = ["tcs-sim", "tests"]
 infrastructure = ["packaging", "bin", "docs"]
 examples = ["examples"]
@@ -167,7 +167,7 @@ categories. A file at the top, in no directory, is infrastructure.
 A name says whether code is operational: find the prefix, `tcslog` if
 the name starts with it and `tcs` otherwise. A letter after it, or
 nothing, is operational (`tcspecial`, `tcsmoc`, `tcslog`, `tcslogc`,
-`tcsxtce`); a hyphen or an underscore is not (`tcs-gui`, `tcs-verify`,
+`tcsxtce`); a hyphen or an underscore is not (`tcs-cfge`, `tcs-verify`,
 `tcs_xtce`, `tcslog-tools`). The rule covers published names, libraries,
 executables and header files, and not projects or the packages they
 install with. tcspecial's design, "Operational code and its names", gives
