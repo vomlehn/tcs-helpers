@@ -234,7 +234,36 @@
   </style>
 </head>
 <body>
-<h1 id="tcs-helpers">tcs-helpers</h1>
+<header id="title-block-header">
+<h1 class="title">tcs-helpers</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#getting-it" id="toc-getting-it">Getting it</a></li>
+<li><a href="#using-it-from-a-project"
+id="toc-using-it-from-a-project">Using it from a project</a></li>
+<li><a href="#html-pages" id="toc-html-pages">HTML pages</a></li>
+<li><a href="#code-categories" id="toc-code-categories">Code
+categories</a></li>
+<li><a href="#operational-names" id="toc-operational-names">Operational
+names</a></li>
+<li><a href="#third-party-notices"
+id="toc-third-party-notices">Third-party notices</a></li>
+<li><a href="#publishing-a-release"
+id="toc-publishing-a-release">Publishing a release</a></li>
+<li><a href="#what-make-install-does-in-a-project"
+id="toc-what-make-install-does-in-a-project">What
+<code>make install</code> does in a project</a></li>
+<li><a href="#keeping-it-up-to-date"
+id="toc-keeping-it-up-to-date">Keeping it up to date</a></li>
+<li><a href="#uninstalling" id="toc-uninstalling">Uninstalling</a></li>
+<li><a href="#this-documentation" id="toc-this-documentation">This
+documentation</a></li>
+<li><a href="#checking" id="toc-checking">Checking</a></li>
+<li><a href="#license" id="toc-license">License</a></li>
+</ul>
+</nav>
 <p>tcs-helpers holds the one copy of what the TCS projects – tcs-xtce,
 tcslog, tcslog-tools and tcspecial – share for building their packages:
 the make rules and the scripts they run. Each project used to carry its
@@ -245,7 +274,7 @@ repository, by default the one beside the project,
 <code>../tcs-helpers</code>, so that cloning it next to the projects is
 all it takes, and nothing is put in <code>~/bin</code>,
 <code>/usr</code> or <code>/opt</code>.</p>
-<h2 id="getting-it">Getting it</h2>
+<h1 id="getting-it">Getting it</h1>
 <p>Clone it beside the TCS projects:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working        <span class="co"># the directory that holds tcs-xtce, tcslog and so on</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone git@github.com:vomlehn/tcs-helpers.git</span></code></pre></div>
@@ -253,7 +282,7 @@ all it takes, and nothing is put in <code>~/bin</code>,
 somewhere else, set <code>TCS_HELPERS</code> to its path, on the make
 command line or in the environment:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> packages TCS_HELPERS=/path/to/tcs-helpers</span></code></pre></div>
-<h2 id="using-it-from-a-project">Using it from a project</h2>
+<h1 id="using-it-from-a-project">Using it from a project</h1>
 <p>A project’s packaging – <code>make install</code>,
 <code>make uninstall</code>, <code>make install-files</code>,
 <code>make uninstall-files</code>, <code>make stage</code>,
@@ -376,7 +405,7 @@ script, which links its programs into <code>/usr/local/bin</code></td>
 <code>make install-files</code>, Debian control files and maintainer
 scripts, RPM specs, <code>copyright.in</code>, rpmlint settings and
 install hooks – stays in each project.</p>
-<h2 id="html-pages">HTML pages</h2>
+<h1 id="html-pages">HTML pages</h1>
 <p>A project commits each HTML page beside the reStructuredText or
 Markdown it is built from, so that it can be read without building it.
 Two things keep those pages up to date, both from
@@ -397,7 +426,7 @@ directory and fails, naming them, where any was behind its source, which
 catches a commit made without the hook. The pages it found behind are
 already rebuilt, and need only committing.</li>
 </ul>
-<h2 id="code-categories">Code categories</h2>
+<h1 id="code-categories">Code categories</h1>
 <p>TCS code is in six categories. This is the one statement of them,
 which every TCS project’s documents, <code>categories.toml</code> and
 <code>make ntss</code> use:</p>
@@ -425,7 +454,7 @@ the vehicle, and MOC code, in the mission operations centre</td>
 <td>Software tools</td>
 <td>What makes or checks what operational code is built from or loads:
 generators, editors, checkers</td>
-<td>the tcs-xtce compiler, tcs-gui, tcs-xtcee, tcs-verify, tcs-diagram,
+<td>the tcs-xtce compiler, tcs-cfge, tcs-xtcee, tcs-verify, tcs-diagram,
 tcs-ui</td>
 </tr>
 <tr>
@@ -463,7 +492,7 @@ no fault in the operational code.</p>
 <div class="sourceCode" id="cb5"><pre
 class="sourceCode toml"><code class="sourceCode toml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[categories]</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">operational</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;tcspecial&quot;</span><span class="op">,</span> <span class="st">&quot;tcsprotocol&quot;</span><span class="op">,</span> <span class="st">&quot;python/tcsmoc&quot;</span><span class="op">]</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="dt">software-tools</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;tcs-gui&quot;</span><span class="op">,</span> <span class="st">&quot;python/tcs_ui&quot;</span><span class="op">]</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="dt">software-tools</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;tcs-cfge&quot;</span><span class="op">,</span> <span class="st">&quot;python/tcs_ui&quot;</span><span class="op">]</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="dt">verification-tools</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;tcs-sim&quot;</span><span class="op">,</span> <span class="st">&quot;tests&quot;</span><span class="op">]</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="dt">infrastructure</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;packaging&quot;</span><span class="op">,</span> <span class="st">&quot;bin&quot;</span><span class="op">,</span> <span class="st">&quot;docs&quot;</span><span class="op">]</span></span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="dt">examples</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;examples&quot;</span><span class="op">]</span></span></code></pre></div>
@@ -473,13 +502,13 @@ several, as <code>cpp/include/tcsxtce-*</code> does where one directory
 holds headers of two categories. A file at the top, in no directory, is
 infrastructure. <code>bin/operational-names</code> holds the file to the
 project, as below.</p>
-<h2 id="operational-names">Operational names</h2>
+<h1 id="operational-names">Operational names</h1>
 <p>A name says whether code is operational: find the prefix,
 <code>tcslog</code> if the name starts with it and <code>tcs</code>
 otherwise. A letter after it, or nothing, is operational
 (<code>tcspecial</code>, <code>tcsmoc</code>, <code>tcslog</code>,
 <code>tcslogc</code>, <code>tcsxtce</code>); a hyphen or an underscore
-is not (<code>tcs-gui</code>, <code>tcs-verify</code>,
+is not (<code>tcs-cfge</code>, <code>tcs-verify</code>,
 <code>tcs_xtce</code>, <code>tcslog-tools</code>). The rule covers
 published names, libraries, executables and header files, and not
 projects or the packages they install with. tcspecial’s design,
@@ -515,7 +544,7 @@ when a commit changes a Cargo manifest or lock file, a
 <code>pyproject.toml</code>, Python or <code>categories.toml</code>, or
 adds a file, so that a dependency on a tool, or a directory in no
 category, is refused when it is committed.</p>
-<h2 id="third-party-notices">Third-party notices</h2>
+<h1 id="third-party-notices">Third-party notices</h1>
 <p>Nearly every Rust crate’s licence – MIT, Apache-2.0, the BSD
 licences, Zlib, Unicode-3.0, the SIL Open Font License of a font a crate
 embeds – requires its copyright and licence notices to go with every
@@ -553,7 +582,7 @@ one, which they meet with Slint’s attribution badge in their
 READMEs.</p>
 <p>cargo runs offline, so the workspace must have been built, as
 <code>install-files</code> has done by then.</p>
-<h2 id="publishing-a-release">Publishing a release</h2>
+<h1 id="publishing-a-release">Publishing a release</h1>
 <p><code>make publish-release</code> builds the project’s packages and
 publishes them as a GitHub release, with <code>gh</code>:</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> tag v1.2.0 <span class="kw">&amp;&amp;</span> <span class="fu">git</span> push origin v1.2.0</span>
@@ -571,8 +600,8 @@ project says so once rather than each release remembering it:</p>
 release already, or a package has no <code>THIRD-PARTY-NOTICES</code>. A
 release that exists is left alone; replace its files with
 <code>gh release upload --clobber</code>.</p>
-<h2 id="what-make-install-does-in-a-project">What
-<code>make install</code> does in a project</h2>
+<h1 id="what-make-install-does-in-a-project">What
+<code>make install</code> does in a project</h1>
 <p><code>make install</code> builds the project’s packages, the .deb and
 the RPM, as whoever ran make, with <code>make packages</code>; then it
 installs those of the kind this system takes, with its usual installer,
@@ -685,7 +714,7 @@ and which a developer can use to install without a package.
 <code>DESTDIR</code> or <code>PREFIX</code>, the packages going under
 <code>/opt/tcs</code>, and stop, naming <code>install-files</code>, if
 given either.</p>
-<h2 id="keeping-it-up-to-date">Keeping it up to date</h2>
+<h1 id="keeping-it-up-to-date">Keeping it up to date</h1>
 <p>Pull it as you would any other repository:</p>
 <div class="sourceCode" id="cb11"><pre
 class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/working/tcs-helpers</span>
@@ -697,7 +726,7 @@ than the checkout’s says so and stops, naming the version it needs.</p>
 <code>CHANGELOG.md</code> what each version changed. A change that a
 project comes to depend on raises the version, and the project raises
 the version it requires.</p>
-<h2 id="uninstalling">Uninstalling</h2>
+<h1 id="uninstalling">Uninstalling</h1>
 <p>Since nothing is installed, removing tcs-helpers is removing its
 checkout:</p>
 <div class="sourceCode" id="cb12"><pre
@@ -717,13 +746,13 @@ class="sourceCode sh"><code class="sourceCode bash"><span id="cb13-1"><a href="#
 <code>~/lib/tcs-helpers</code>, or the same under the
 <code>PREFIX</code>, <code>BINDIR</code> and <code>DATADIR</code> that
 <code>make install</code> was given, if any were.</p>
-<h2 id="this-documentation">This documentation</h2>
+<h1 id="this-documentation">This documentation</h1>
 <p>This file, <code>README.md</code>, is the documentation, in Markdown.
 <code>make README.html</code> writes <code>README.html</code> from it
 with pandoc, for reading in a browser; this checkout’s own pre-commit
 hook does that and commits the two together once <code>make hooks</code>
 has been run here.</p>
-<h2 id="checking">Checking</h2>
+<h1 id="checking">Checking</h1>
 <p><code>make check</code> runs
 <code>bin/operational-names --self-test</code>, which holds the rule to
 names it must judge rightly, compiles
@@ -737,7 +766,7 @@ system. <code>install-packages.sh</code> reads the os-release file
 <code>/etc/os-release</code>, for testing. <code>packaging.mk</code> is
 checked by the projects’ own <code>make packages</code> and
 <code>make lint-packages</code>.</p>
-<h2 id="license">License</h2>
+<h1 id="license">License</h1>
 <p>Licensed under either of the Apache License, Version 2.0, in
 <code>LICENSE-APACHE</code>, or the MIT license, in
 <code>LICENSE-MIT</code>, at your option.</p>

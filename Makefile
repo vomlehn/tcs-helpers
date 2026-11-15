@@ -30,10 +30,12 @@ help:
 	@sed -n 's/^#   //p' Makefile
 
 # README.md is the documentation; README.html is it as a page of its own,
-# with pandoc's --standalone giving it a head and a title.
+# with pandoc's --standalone giving it a head and a title: README.md's own
+# first heading, made the page's title, with a table of contents under it.
 README.html: README.md
-	pandoc --standalone --metadata pagetitle=tcs-helpers README.md \
-		-o README.html
+	pandoc --standalone --shift-heading-level-by=-1 --toc --toc-depth=3 \
+		--metadata toc-title=Contents --metadata pagetitle=tcs-helpers \
+		README.md -o README.html
 
 .PHONY: hooks
 hooks:
