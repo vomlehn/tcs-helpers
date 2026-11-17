@@ -18,6 +18,10 @@
 # THIRD-PARTY-NOTICES, the licence notices of what is compiled into it,
 # so that no release goes out without them. A release that exists is left
 # alone: replacing its files is gh release upload --clobber's, by hand.
+#
+# Once the release is published, cite.sh brings the project's
+# CITATION.cff, where it has one, to it: the version and the date,
+# committed and pushed on the branch checked out.
 set -eu
 
 if [ $# -lt 4 ]; then
@@ -51,6 +55,12 @@ git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null ||
 if gh release view "$tag" > /dev/null 2>&1; then
 	fail "a release of $tag exists already: to replace its files, use" \
 	     "gh release upload $tag --clobber"
+fi
+# What cite.sh will commit is the citation alone, so it must have nothing
+# else waiting in it.
+if [ -f CITATION.cff ] && ! git diff --quiet HEAD -- CITATION.cff; then
+	fail "CITATION.cff has changes that are not committed: commit or" \
+	     "drop them first, since publishing commits it for $tag"
 fi
 
 # The package files, each carrying its notices.
@@ -91,3 +101,4 @@ done
 # shellcheck disable=SC2086
 gh release create "$tag" --verify-tag --notes-file "$body" \
 	${RELEASE_FLAGS:-} $files
+"$here/cite.sh" "$tag"

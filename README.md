@@ -96,6 +96,7 @@ What the projects use from it, all in `packaging/`:
 | `debian-files.sh` | Adds to a .deb the files Debian expects outside `/opt/tcs`: the copyright, `changelog.Debian.gz`, lintian overrides, the ldconfig trigger and `DEBIAN/md5sums`. It is given the project's `packaging/deb` directory, which holds what differs between projects |
 | `third-party-notices.py` | Writes `THIRD-PARTY-NOTICES`, the notices a package owes the Rust crates compiled into it: see below |
 | `release.sh` | Publishes the packages as a GitHub release, for `make publish-release`: see below |
+| `cite.sh` | Brings a project's `CITATION.cff` to a release, its version and date, and commits and pushes it; `release.sh` runs it once a release is published: see below |
 | `attribution/` | The attributions a licence asks to be shown where packages are downloaded, which `make publish-release` adds to a release's notes |
 | `links.sh.in` | The template of each package's `<package>-links` script, which links its programs into `/usr/local/bin` |
 
@@ -275,6 +276,21 @@ Nothing is published if the tag is not on GitHub, the tag has a release
 already, or a package has no `THIRD-PARTY-NOTICES`. A release that
 exists is left alone; replace its files with `gh release upload
 --clobber`.
+
+Once the release is published, `cite.sh` brings the project's
+`CITATION.cff`, where it has one, to it, so that GitHub's "Cite this
+repository" names the latest release: `version:` becomes the tag's
+version, without its `v`, and `date-released:` today's date in UTC. The
+file is committed alone, on the branch checked out, and pushed. A
+prerelease, or a tag that is not `v` and a version, leaves it alone, and
+so does a project without one. Nothing is published while the file has
+changes that are not committed, since publishing commits it. To bring
+it to a release by hand, run `packaging/cite.sh v1.2.0` from the top of
+the project.
+
+The tag's own copy of the file is the one committed before the tag, and
+so cites the release before; the branch's copy, which GitHub shows,
+cites the new one.
 
 ## What `make install` does in a project
 
