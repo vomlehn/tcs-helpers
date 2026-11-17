@@ -96,6 +96,7 @@ What the projects use from it, all in `packaging/`:
 | `debian-files.sh` | Adds to a .deb the files Debian expects outside `/opt/tcs`: the copyright, `changelog.Debian.gz`, lintian overrides, the ldconfig trigger and `DEBIAN/md5sums`. It is given the project's `packaging/deb` directory, which holds what differs between projects |
 | `third-party-notices.py` | Writes `THIRD-PARTY-NOTICES`, the notices a package owes the Rust crates compiled into it: see below |
 | `release.sh` | Publishes the packages as a GitHub release, for `make publish-release`: see below |
+| `portable/` | The portable build: `Containerfile`, an Ubuntu 22.04 image with what building and packaging every project needs, and `portable.sh`, which builds a project's packages in it, for `make portable-packages`: see below |
 | `cite.sh` | Brings a project's `CITATION.cff` to a release, its version and date, and commits and pushes it; `release.sh` runs it once a release is published: see below |
 | `attribution/` | The attributions a licence asks to be shown where packages are downloaded, which `make publish-release` adds to a release's notes |
 | `links.sh.in` | The template of each package's `<package>-links` script, which links its programs into `/usr/local/bin` |
@@ -249,6 +250,28 @@ one, which they meet with Slint's attribution badge in their READMEs.
 cargo runs offline, so the workspace must have been built, as
 `install-files` has done by then.
 
+## Building packages for older systems
+
+A program needs a C library at least as new as the one it was built
+against, so packages built on a new system will not install on an older
+one. `make portable-packages` builds the project's packages on Ubuntu
+22.04, whose glibc is 2.35, in a Podman container, so that they install
+on Ubuntu 22.04 and later, Debian 12 and a current Fedora:
+
+```sh
+make portable-packages             # build/packages, as make packages
+PORTABLE_REBUILD=1 make portable-packages   # the image made again
+```
+
+The image, `tcs-portable-build`, is built from `packaging/portable/Containerfile`
+the first time; `PORTABLE_REBUILD=1` builds it again, with the newest
+Rust and Ubuntu's updates. The directory holding the project, and so the
+checkouts beside it, is mounted at the same path, and the build runs as
+whoever runs it. Cargo builds into `target/portable`, apart from the
+host's `target`, and keeps its downloads between builds in the volume
+`tcs-portable-cargo`. The `.deb` files are compressed with xz, which
+every dpkg reads, rather than zstd, which older ones do not.
+
 ## Publishing a release
 
 `make publish-release` builds the project's packages and publishes them as a
@@ -271,6 +294,10 @@ rather than each release remembering it:
 ```make
 RELEASE_ATTRIBUTION := slint
 ```
+
+A release's packages are built with `make portable-packages`, so that
+they install on older systems; `RELEASE_BUILD=packages` builds them on
+this system instead.
 
 Nothing is published if the tag is not on GitHub, the tag has a release
 already, or a package has no `THIRD-PARTY-NOTICES`. A release that

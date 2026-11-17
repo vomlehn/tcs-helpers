@@ -135,5 +135,7 @@ fi
 "$here/debian-files.sh" "$debdir" "$source" "$package" "$root" \
 	"$version" "$epoch"
 
-dpkg-deb --root-owner-group --build "$root" \
+# Compressed with xz rather than dpkg-deb's default, zstd, which a dpkg
+# older than 1.21.18, as Debian 11's is, cannot read.
+dpkg-deb --root-owner-group -Zxz --build "$root" \
 	"$out/${package}_${version}_${arch}.deb"

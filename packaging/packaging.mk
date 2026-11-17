@@ -14,6 +14,9 @@
 #   deb            build each package's .deb into build/packages
 #   rpm            build each package's .rpm into build/packages
 #   packages       build both
+#   portable-packages
+#                  build both on Ubuntu 22.04, in a container, so that
+#                  they install on systems as old as that
 #   lint-packages  check what packages built with lintian, rpmlint and
 #                  shellcheck
 #   links          link the installed programs into LINKDIR; unlinks
@@ -198,6 +201,16 @@ rpm: tcs-helpers		## Build the .rpms in build/packages
 .PHONY: packages
 packages: deb rpm		## Build both; STRIP=0 leaves them unstripped
 
+# Build both on Ubuntu 22.04, in a Podman container, rather than on this
+# system, so that they install on systems as old as that: a program needs
+# a C library at least as new as the one it was built against. See
+# portable/portable.sh, which says what is mounted and where Cargo builds.
+# publish-release builds a release's packages this way.
+.PHONY: portable-packages
+portable-packages: tcs-helpers	## Build both on Ubuntu 22.04, for older systems
+	$(TCS_HELPERS)/packaging/portable/portable.sh $(CURDIR) packages \
+		$(if $(STRIP),STRIP=$(STRIP))
+
 # Check the packages `make packages` built, and the shell scripts they run
 # or install, with lintian, rpmlint and shellcheck, any of which is skipped
 # in a line if it is not installed: see lint-packages.sh. rpmlint is given
@@ -274,9 +287,13 @@ uninstall: tcs-helpers		## Remove the installed packages
 RELEASE_TAG   ?= v$(VERSION)
 RELEASE_NOTES ?=
 RELEASE_ATTRIBUTION ?=
+# How a release's packages are built: portable-packages, on Ubuntu 22.04
+# so that they install on systems as old as that, unless RELEASE_BUILD
+# says packages, on this system.
+RELEASE_BUILD ?= portable-packages
 .PHONY: publish-release
 publish-release: tcs-helpers	## Build packages and publish a GitHub release
-	$(MAKE) --no-print-directory packages
+	$(MAKE) --no-print-directory $(RELEASE_BUILD)
 	RELEASE_FLAGS='$(RELEASE_FLAGS)' $(TCS_HELPERS)/packaging/release.sh \
 		'$(RELEASE_TAG)' '$(RELEASE_NOTES)' '$(RELEASE_ATTRIBUTION)' \
 		$(DEB_FILES) -- $(RPM_FILES)
